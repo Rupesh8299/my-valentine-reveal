@@ -117,9 +117,6 @@
 
   .font-romantic {
     font-family: 'Patrick Hand', cursive;
-    font-weight: 400;
-    -webkit-font-smoothing: antialiased;
-    text-rendering: optimizeLegibility;
   }
 }
 
