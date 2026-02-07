@@ -83,7 +83,7 @@ const FlipCard = ({ day, isFlipped, onFlip, onReset }: FlipCardProps) => {
                 transition={{ delay: 0.5 }}
                 className="text-sm md:text-base text-muted-foreground font-light"
               >
-                Tap below to reveal your surprise
+                Click Here
               </motion.p>
             </div>
 
@@ -98,7 +98,9 @@ const FlipCard = ({ day, isFlipped, onFlip, onReset }: FlipCardProps) => {
                 onClick={onFlip}
                 gradient={day.gradient}
                 glowColor={day.colors[0]}
-              />
+              >
+                Babe!!
+              </GlowButton>
             </motion.div>
           </div>
         </div>
@@ -184,17 +186,20 @@ const FlipCard = ({ day, isFlipped, onFlip, onReset }: FlipCardProps) => {
               className="mt-4 md:mt-6"
             >
               <p className="text-xs md:text-sm font-bold uppercase tracking-[0.2em] text-muted-foreground mb-1">
-                For {CONFIG.partnerName}
+                With all my Love 
               </p>
               <p 
+                key={day.id} // Force re-render when day changes to fix gradient text issue
                 className="font-romantic text-2xl md:text-3xl font-bold"
                 style={{ 
                   background: day.gradient,
                   WebkitBackgroundClip: 'text',
-                  WebkitTextFillColor: 'transparent'
+                  WebkitTextFillColor: 'transparent',
+                  backgroundClip: 'text', // Standard property
+                  color: 'transparent' // Fallback
                 }}
               >
-                With All My Love
+                For {CONFIG.partnerName}
               </p>
             </motion.div>
           </div>

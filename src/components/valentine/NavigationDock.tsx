@@ -27,7 +27,7 @@ const NavigationDock = ({ currentIndex, setIndex, lockedIndices }: NavigationDoc
       initial={{ y: 100, opacity: 0 }}
       animate={{ y: 0, opacity: 1 }}
       transition={{ delay: 0.5, type: "spring", stiffness: 150, damping: 20 }}
-      className="fixed bottom-4 md:bottom-6 left-1/2 -translate-x-1/2 z-40 px-3 py-2.5 md:px-5 md:py-3 rounded-2xl glass-card-strong flex gap-1.5 sm:gap-3 items-center max-w-[95vw] overflow-x-auto no-scrollbar pb-safe"
+      className="fixed bottom-4 md:bottom-6 left-1/2 -translate-x-1/2 z-40 px-2 py-2 md:px-5 md:py-3 rounded-2xl glass-card-strong flex gap-1.5 sm:gap-3 items-center w-max max-w-[92vw] overflow-x-auto no-scrollbar pb-safe"
     >
       {WEEK_DATA.map((day, idx) => {
         const isActive = idx === currentIndex;

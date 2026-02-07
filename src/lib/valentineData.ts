@@ -1,11 +1,11 @@
-import { 
-  Flower2, 
-  Gem, 
-  Cookie, 
+import {
+  Flower2,
+  Gem,
+  Cookie,
   Cat,
-  Handshake, 
-  SmilePlus, 
-  Sparkles, 
+  Handshake,
+  SmilePlus,
+  Sparkles,
   Heart,
   LucideIcon
 } from 'lucide-react';
@@ -20,12 +20,13 @@ export interface DayData {
   icon: LucideIcon;
   confettiEmoji: string;
   gradient: string;
+  audio: string;
 }
 
 export const CONFIG = {
-  partnerName: "My Love",
+  partnerName: "Vandu",
   baseYear: 2026,
-  demoMode: false 
+  demoMode: true
 };
 
 const createDate = (day: number) => new Date(2026, 1, day);
@@ -40,7 +41,9 @@ export const WEEK_DATA: DayData[] = [
     colors: ['#e11d48', '#fda4af', '#881337'],
     icon: Flower2,
     confettiEmoji: '🌹',
-    gradient: 'linear-gradient(135deg, #e11d48 0%, #be185d 50%, #881337 100%)'
+    gradient: 'linear-gradient(135deg, #e11d48 0%, #be185d 50%, #881337 100%)',
+    // Rose Day
+    audio: '/music/PerfectEdSheeran.mp3'
   },
   {
     id: 'propose',
@@ -51,7 +54,9 @@ export const WEEK_DATA: DayData[] = [
     colors: ['#d97706', '#fcd34d', '#78350f'],
     icon: Gem,
     confettiEmoji: '💍',
-    gradient: 'linear-gradient(135deg, #d97706 0%, #f59e0b 50%, #fcd34d 100%)'
+    gradient: 'linear-gradient(135deg, #d97706 0%, #f59e0b 50%, #fcd34d 100%)',
+    // Propose Day
+    audio: '/music/Dandelionsacoustic.mp3'
   },
   {
     id: 'chocolate',
@@ -62,7 +67,9 @@ export const WEEK_DATA: DayData[] = [
     colors: ['#78350f', '#d4a373', '#451a03'],
     icon: Cookie,
     confettiEmoji: '🍫',
-    gradient: 'linear-gradient(135deg, #78350f 0%, #92400e 50%, #d4a373 100%)'
+    gradient: 'linear-gradient(135deg, #78350f 0%, #92400e 50%, #d4a373 100%)',
+    // Chocolate Day - Assigned Tum Hi Ho
+    audio: '/music/Wedonttalkanymore.mp3'
   },
   {
     id: 'teddy',
@@ -71,9 +78,11 @@ export const WEEK_DATA: DayData[] = [
     displayDate: 'Feb 10',
     message: "Soft hugs and warm cuddles. Sending you a bear-y big hug!",
     colors: ['#0ea5e9', '#bae6fd', '#ec4899'],
-    icon: Cat, 
+    icon: Cat,
     confettiEmoji: '🧸',
-    gradient: 'linear-gradient(135deg, #0ea5e9 0%, #38bdf8 50%, #bae6fd 100%)'
+    gradient: 'linear-gradient(135deg, #0ea5e9 0%, #38bdf8 50%, #bae6fd 100%)',
+    // Teddy Day - Assigned Dandelions
+    audio: '/music/Fallinginlove.mp3'
   },
   {
     id: 'promise',
@@ -84,7 +93,9 @@ export const WEEK_DATA: DayData[] = [
     colors: ['#7c3aed', '#ddd6fe', '#4c1d95'],
     icon: Handshake,
     confettiEmoji: '🤝',
-    gradient: 'linear-gradient(135deg, #7c3aed 0%, #8b5cf6 50%, #a78bfa 100%)'
+    gradient: 'linear-gradient(135deg, #7c3aed 0%, #8b5cf6 50%, #a78bfa 100%)',
+    // Promise Day
+    audio: '/music/Ghostjustinbieber.mp3'
   },
   {
     id: 'hug',
@@ -95,7 +106,9 @@ export const WEEK_DATA: DayData[] = [
     colors: ['#ea580c', '#fdba74', '#c2410c'],
     icon: SmilePlus,
     confettiEmoji: '🫂',
-    gradient: 'linear-gradient(135deg, #ea580c 0%, #f97316 50%, #fdba74 100%)'
+    gradient: 'linear-gradient(135deg, #ea580c 0%, #f97316 50%, #fdba74 100%)',
+    // Hug Day
+    audio: '/music/PehliNazarMein.mp3'
   },
   {
     id: 'kiss',
@@ -106,7 +119,9 @@ export const WEEK_DATA: DayData[] = [
     colors: ['#be123c', '#fecdd3', '#db2777'],
     icon: Sparkles,
     confettiEmoji: '💋',
-    gradient: 'linear-gradient(135deg, #db2777 0%, #ec4899 50%, #f472b6 100%)'
+    gradient: 'linear-gradient(135deg, #db2777 0%, #ec4899 50%, #f472b6 100%)',
+    // Kiss Day
+    audio: '/music/BabyImyours.mp3'
   },
   {
     id: 'valentine',
@@ -117,7 +132,9 @@ export const WEEK_DATA: DayData[] = [
     colors: ['#dc2626', '#fca5a5', '#991b1b'],
     icon: Heart,
     confettiEmoji: '❤️',
-    gradient: 'linear-gradient(135deg, #dc2626 0%, #ef4444 50%, #f87171 100%)'
+    gradient: 'linear-gradient(135deg, #dc2626 0%, #ef4444 50%, #f87171 100%)',
+    // Valentine's Day
+    audio: '/music/tumhiho.mp3'
   },
 ];
 
@@ -127,7 +144,7 @@ export const isFuture = (targetDate: Date): boolean => {
   const currentYear = now.getFullYear();
   const checkDate = new Date(targetDate);
   checkDate.setFullYear(currentYear);
-  
+
   now.setHours(0, 0, 0, 0);
   checkDate.setHours(0, 0, 0, 0);
 
@@ -136,8 +153,8 @@ export const isFuture = (targetDate: Date): boolean => {
 
 export const getInitialDayIndex = (): number => {
   const now = new Date();
-  const todayIndex = WEEK_DATA.findIndex(d => 
-    d.dateObj.getDate() === now.getDate() && 
+  const todayIndex = WEEK_DATA.findIndex(d =>
+    d.dateObj.getDate() === now.getDate() &&
     d.dateObj.getMonth() === now.getMonth()
   );
   return todayIndex !== -1 ? todayIndex : 0;

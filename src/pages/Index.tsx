@@ -7,13 +7,17 @@ import FluidBackground from '@/components/valentine/FluidBackground';
 import FlipCard from '@/components/valentine/FlipCard';
 import NavigationDock from '@/components/valentine/NavigationDock';
 import IntroOverlay from '@/components/valentine/IntroOverlay';
+import TransitionModal from '@/components/valentine/TransitionModal';
 import AudioControls from '@/components/valentine/AudioControls';
 
 const Index = () => {
+  // Main game logic
   const [started, setStarted] = useState(false);
   const [dayIndex, setDayIndex] = useState(0);
   const [showGift, setShowGift] = useState(false);
   const [isMuted, setIsMuted] = useState(true);
+  const [showTransition, setShowTransition] = useState(false);
+  const [transitionMessage, setTransitionMessage] = useState("");
   const audioRef = useRef<HTMLAudioElement>(null);
   
   const lockedIndices = useMemo(() => {
@@ -23,17 +27,76 @@ const Index = () => {
   // Set initial day on mount
   useEffect(() => {
     setDayIndex(getInitialDayIndex());
-  }, []);
+  }, []); // Run only once
 
   // Reset gift state when day changes
+  // 1. Handle Day Change (Reset gift, Load new audio)
   useEffect(() => {
     setShowGift(false);
-  }, [dayIndex]);
+    if (audioRef.current) {
+      audioRef.current.src = WEEK_DATA[dayIndex].audio;
+      // If already started and not muted, play the new track
+      if (!isMuted && started) {
+        audioRef.current.play().catch(error => console.log("Audio play failed:", error));
+      }
+    }
+  }, [dayIndex]); 
+
+  // 2. Handle Play/Pause Toggle (Mute/Unmute/Start)
+  useEffect(() => {
+    if (audioRef.current && started) {
+      if (isMuted) {
+        audioRef.current.pause(); // Or just let it play if volume is 0, but pause is better
+      } else {
+        audioRef.current.play().catch(error => console.log("Audio play failed:", error));
+      }
+    }
+  }, [isMuted, started]);
 
   const currentDay = WEEK_DATA[dayIndex];
 
-  // Handle confetti on gift open
+  // Handle page transition (immediate)
+  const handlePageChange = (newIndex: number) => {
+    setDayIndex(newIndex);
+  };
+
+  // Handle confetti and popup on gift open
   const handleOpenGift = () => {
+    // Determine popup message based on CURRENT day
+    let message = "";
+    const idx = dayIndex;
+
+    if (idx === 0) { // Rose Day
+      message = "Kaisa Hai?😁";
+    } else if (idx === 1) { // Propose Day
+      message = "Yeh wala?😉";
+    } else if (idx === 2) { // Chocolate Day
+      message = "😓";
+    } else if (idx === 7) { // Valentine's Day
+      message = "Yeh last only for you!!🙈";
+    }
+
+    // Show popup if there is a message
+    if (message) {
+      setTransitionMessage(message);
+      setShowTransition(true);
+      
+      // Hide popup after delay
+      setTimeout(() => {
+        setShowTransition(false);
+      }, 3000);
+    }
+
+    // Trigger confetti and flip card (immediate or slight delay?)
+    // User asked for "page transitions" (flip) after popup?
+    // Let's add a small delay for the flip so they see the popup first
+    setTimeout(() => {
+      triggerConfetti();
+      setShowGift(true);
+    }, message ? 1000 : 0); // 1s delay if message, else immediate
+  };
+
+  const triggerConfetti = () => {
     const duration = 3000;
     const end = Date.now() + duration;
 
@@ -73,14 +136,16 @@ const Index = () => {
       shapes: ['circle', 'square'],
       scalar: 1.5
     });
-
-    setShowGift(true);
   };
 
   const handleStart = () => {
     setStarted(true);
     // Unmute on start
     setIsMuted(false);
+    if (audioRef.current) {
+      audioRef.current.src = currentDay.audio;
+      audioRef.current.play().catch(e => console.log("Audio play failed:", e));
+    }
   };
 
   return (
@@ -94,6 +159,7 @@ const Index = () => {
       {/* Intro overlay */}
       <AnimatePresence>
         {!started && <IntroOverlay onStart={handleStart} />}
+        {showTransition && <TransitionModal message={transitionMessage} />}
       </AnimatePresence>
 
       {/* Main content */}
@@ -126,12 +192,12 @@ const Index = () => {
             <AudioControls isMuted={isMuted} onToggle={() => setIsMuted(!isMuted)} />
           </motion.div>
 
-          {/* Day indicator */}
+          {/* Day indicator - Moved to relative positioning to prevent overlap */}
           <motion.div
             initial={{ opacity: 0, y: -10 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.4 }}
-            className="absolute top-20 md:top-24 left-1/2 -translate-x-1/2"
+            className="mb-6 md:mb-8 z-20"
           >
             <div 
               className="text-xs md:text-sm font-medium tracking-[0.3em] uppercase"
@@ -155,7 +221,7 @@ const Index = () => {
       {started && (
         <NavigationDock 
           currentIndex={dayIndex} 
-          setIndex={setDayIndex}
+          setIndex={handlePageChange}
           lockedIndices={lockedIndices}
         />
       )}
