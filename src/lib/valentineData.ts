@@ -26,7 +26,7 @@ export interface DayData {
 export const CONFIG = {
   partnerName: "Vandu",
   baseYear: 2026,
-  demoMode: true
+  demoMode: false
 };
 
 const createDate = (day: number) => new Date(2026, 1, day);
