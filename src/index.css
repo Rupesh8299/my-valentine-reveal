@@ -1,8 +1,8 @@
+@import url('https://fonts.googleapis.com/css2?family=Patrick+Hand&family=Inter:wght@300;400;500;600;700;800;900&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
-
-@import url('https://fonts.googleapis.com/css2?family=Dancing+Script:wght@400;500;600;700&family=Inter:wght@300;400;500;600;700;800;900&display=swap');
 
 @layer base {
   :root {
@@ -116,7 +116,7 @@
   }
 
   .font-romantic {
-    font-family: 'Dancing Script', cursive;
+    font-family: 'Patrick Hand', cursive;
   }
 }
 
@@ -136,7 +136,7 @@
     backdrop-filter: blur(32px);
     -webkit-backdrop-filter: blur(32px);
     border: 1px solid hsl(0 0% 100% / 0.2);
-    box-shadow: 
+    box-shadow:
       var(--glass-shadow),
       inset 0 1px 1px hsl(0 0% 100% / 0.1);
   }
@@ -190,6 +190,7 @@
   .no-scrollbar::-webkit-scrollbar {
     display: none;
   }
+
   .no-scrollbar {
     -ms-overflow-style: none;
     scrollbar-width: none;
@@ -229,44 +230,69 @@
   }
 
   @keyframes float {
-    0%, 100% { transform: translateY(0px); }
-    50% { transform: translateY(-20px); }
+
+    0%,
+    100% {
+      transform: translateY(0px);
+    }
+
+    50% {
+      transform: translateY(-20px);
+    }
   }
 
   @keyframes pulse-glow {
-    0%, 100% { 
+
+    0%,
+    100% {
       opacity: 1;
       box-shadow: 0 0 20px currentColor, 0 0 40px currentColor;
     }
-    50% { 
+
+    50% {
       opacity: 0.8;
       box-shadow: 0 0 40px currentColor, 0 0 80px currentColor;
     }
   }
 
   @keyframes shimmer {
-    0% { background-position: -200% 0; }
-    100% { background-position: 200% 0; }
+    0% {
+      background-position: -200% 0;
+    }
+
+    100% {
+      background-position: 200% 0;
+    }
   }
 
   @keyframes blob {
-    0%, 100% {
+
+    0%,
+    100% {
       transform: translate(0, 0) scale(1);
     }
+
     25% {
       transform: translate(50px, -50px) scale(1.1);
     }
+
     50% {
       transform: translate(-30px, 30px) scale(0.9);
     }
+
     75% {
       transform: translate(30px, 50px) scale(1.05);
     }
   }
 
   @keyframes spin-slow {
-    from { transform: rotate(0deg); }
-    to { transform: rotate(360deg); }
+    from {
+      transform: rotate(0deg);
+    }
+
+    to {
+      transform: rotate(360deg);
+    }
   }
 
   .animate-spin-slow {
