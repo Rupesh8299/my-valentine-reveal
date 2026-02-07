@@ -24,7 +24,7 @@ export interface DayData {
 }
 
 export const CONFIG = {
-  partnerName: "Vandu",
+  partnerName: "Rupesh",
   baseYear: 2026,
   demoMode: false
 };

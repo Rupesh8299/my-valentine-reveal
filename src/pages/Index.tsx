@@ -1,14 +1,19 @@
-import { useState, useEffect, useRef, useMemo } from 'react';
-import { AnimatePresence, motion } from 'framer-motion';
-import confetti from 'canvas-confetti';
+import { useState, useEffect, useRef, useMemo } from "react";
+import { AnimatePresence, motion } from "framer-motion";
+import confetti from "canvas-confetti";
 
-import { WEEK_DATA, CONFIG, isFuture, getInitialDayIndex } from '@/lib/valentineData';
-import FluidBackground from '@/components/valentine/FluidBackground';
-import FlipCard from '@/components/valentine/FlipCard';
-import NavigationDock from '@/components/valentine/NavigationDock';
-import IntroOverlay from '@/components/valentine/IntroOverlay';
-import TransitionModal from '@/components/valentine/TransitionModal';
-import AudioControls from '@/components/valentine/AudioControls';
+import {
+  WEEK_DATA,
+  CONFIG,
+  isFuture,
+  getInitialDayIndex,
+} from "@/lib/valentineData";
+import FluidBackground from "@/components/valentine/FluidBackground";
+import FlipCard from "@/components/valentine/FlipCard";
+import NavigationDock from "@/components/valentine/NavigationDock";
+import IntroOverlay from "@/components/valentine/IntroOverlay";
+import TransitionModal from "@/components/valentine/TransitionModal";
+import AudioControls from "@/components/valentine/AudioControls";
 
 const Index = () => {
   // Main game logic
@@ -18,10 +23,22 @@ const Index = () => {
   const [isMuted, setIsMuted] = useState(true);
   const [showTransition, setShowTransition] = useState(false);
   const [transitionMessage, setTransitionMessage] = useState("");
+  const [partnerName, setPartnerName] = useState(CONFIG.partnerName);
   const audioRef = useRef<HTMLAudioElement>(null);
-  
+
   const lockedIndices = useMemo(() => {
-    return WEEK_DATA.map((day, index) => isFuture(day.dateObj) ? index : -1).filter(i => i !== -1);
+    return WEEK_DATA.map((day, index) =>
+      isFuture(day.dateObj) ? index : -1
+    ).filter((i) => i !== -1);
+  }, []);
+
+  // Extract name from URL query parameters
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const nameFromUrl = params.get("name");
+    if (nameFromUrl) {
+      setPartnerName(nameFromUrl);
+    }
   }, []);
 
   // Set initial day on mount
@@ -37,10 +54,12 @@ const Index = () => {
       audioRef.current.src = WEEK_DATA[dayIndex].audio;
       // If already started and not muted, play the new track
       if (!isMuted && started) {
-        audioRef.current.play().catch(error => console.log("Audio play failed:", error));
+        audioRef.current
+          .play()
+          .catch((error) => console.log("Audio play failed:", error));
       }
     }
-  }, [dayIndex]); 
+  }, [dayIndex]);
 
   // 2. Handle Play/Pause Toggle (Mute/Unmute/Start)
   useEffect(() => {
@@ -48,7 +67,9 @@ const Index = () => {
       if (isMuted) {
         audioRef.current.pause(); // Or just let it play if volume is 0, but pause is better
       } else {
-        audioRef.current.play().catch(error => console.log("Audio play failed:", error));
+        audioRef.current
+          .play()
+          .catch((error) => console.log("Audio play failed:", error));
       }
     }
   }, [isMuted, started]);
@@ -66,13 +87,17 @@ const Index = () => {
     let message = "";
     const idx = dayIndex;
 
-    if (idx === 0) { // Rose Day
+    if (idx === 0) {
+      // Rose Day
       message = "Kaisa Hai?😁";
-    } else if (idx === 1) { // Propose Day
+    } else if (idx === 1) {
+      // Propose Day
       message = "Yeh wala?😉";
-    } else if (idx === 2) { // Chocolate Day
+    } else if (idx === 2) {
+      // Chocolate Day
       message = "😓";
-    } else if (idx === 7) { // Valentine's Day
+    } else if (idx === 7) {
+      // Valentine's Day
       message = "Yeh last only for you!!🙈";
     }
 
@@ -80,7 +105,7 @@ const Index = () => {
     if (message) {
       setTransitionMessage(message);
       setShowTransition(true);
-      
+
       // Hide popup after delay
       setTimeout(() => {
         setShowTransition(false);
@@ -90,10 +115,13 @@ const Index = () => {
     // Trigger confetti and flip card (immediate or slight delay?)
     // User asked for "page transitions" (flip) after popup?
     // Let's add a small delay for the flip so they see the popup first
-    setTimeout(() => {
-      triggerConfetti();
-      setShowGift(true);
-    }, message ? 1000 : 0); // 1s delay if message, else immediate
+    setTimeout(
+      () => {
+        triggerConfetti();
+        setShowGift(true);
+      },
+      message ? 1000 : 0
+    ); // 1s delay if message, else immediate
   };
 
   const triggerConfetti = () => {
@@ -107,8 +135,8 @@ const Index = () => {
         spread: 55,
         origin: { x: 0, y: 0.6 },
         colors: currentDay.colors,
-        shapes: ['circle'],
-        scalar: 1.2
+        shapes: ["circle"],
+        scalar: 1.2,
       });
       confetti({
         particleCount: 3,
@@ -116,25 +144,25 @@ const Index = () => {
         spread: 55,
         origin: { x: 1, y: 0.6 },
         colors: currentDay.colors,
-        shapes: ['circle'],
-        scalar: 1.2
+        shapes: ["circle"],
+        scalar: 1.2,
       });
 
       if (Date.now() < end) {
         requestAnimationFrame(frame);
       }
     };
-    
+
     frame();
-    
+
     // Burst at center
     confetti({
       particleCount: 100,
       spread: 100,
       origin: { x: 0.5, y: 0.5 },
       colors: currentDay.colors,
-      shapes: ['circle', 'square'],
-      scalar: 1.5
+      shapes: ["circle", "square"],
+      scalar: 1.5,
     });
   };
 
@@ -144,7 +172,9 @@ const Index = () => {
     setIsMuted(false);
     if (audioRef.current) {
       audioRef.current.src = currentDay.audio;
-      audioRef.current.play().catch(e => console.log("Audio play failed:", e));
+      audioRef.current
+        .play()
+        .catch((e) => console.log("Audio play failed:", e));
     }
   };
 
@@ -152,44 +182,48 @@ const Index = () => {
     <div className="fixed inset-0 w-full h-[100dvh] overflow-hidden text-foreground selection:bg-primary selection:text-primary-foreground">
       {/* Hidden audio element */}
       <audio ref={audioRef} loop crossOrigin="anonymous" />
-      
+
       {/* Dynamic fluid background */}
       <FluidBackground colors={currentDay.colors} />
-      
+
       {/* Intro overlay */}
       <AnimatePresence>
-        {!started && <IntroOverlay onStart={handleStart} />}
+        {!started && (
+          <IntroOverlay onStart={handleStart} partnerName={partnerName} />
+        )}
         {showTransition && <TransitionModal message={transitionMessage} />}
       </AnimatePresence>
 
       {/* Main content */}
       {started && (
         <div className="relative z-10 flex flex-col items-center justify-center h-full p-4 pb-24 md:pb-32">
-          
           {/* Header */}
-          <motion.div 
+          <motion.div
             initial={{ opacity: 0, y: -20 }}
             animate={{ opacity: 1, y: 0 }}
             className="absolute top-0 left-0 right-0 p-4 md:p-6 flex justify-between items-center z-30"
           >
             {/* Partner name badge */}
-            <motion.div 
+            <motion.div
               initial={{ opacity: 0, x: -20 }}
               animate={{ opacity: 1, x: 0 }}
               transition={{ delay: 0.2 }}
               className="flex items-center gap-2 glass-card px-4 py-2 rounded-full border border-white/10"
             >
-              <div 
+              <div
                 className="w-2 h-2 rounded-full animate-pulse"
                 style={{ backgroundColor: currentDay.colors[0] }}
               />
               <span className="text-xs md:text-sm font-medium text-foreground/80">
-                For {CONFIG.partnerName}
+                For {partnerName}
               </span>
             </motion.div>
 
             {/* Audio controls */}
-            <AudioControls isMuted={isMuted} onToggle={() => setIsMuted(!isMuted)} />
+            <AudioControls
+              isMuted={isMuted}
+              onToggle={() => setIsMuted(!isMuted)}
+            />
           </motion.div>
 
           {/* Day indicator - Moved to relative positioning to prevent overlap */}
@@ -199,7 +233,7 @@ const Index = () => {
             transition={{ delay: 0.4 }}
             className="mb-6 md:mb-8 z-20"
           >
-            <div 
+            <div
               className="text-xs md:text-sm font-medium tracking-[0.3em] uppercase"
               style={{ color: currentDay.colors[0] }}
             >
@@ -208,19 +242,20 @@ const Index = () => {
           </motion.div>
 
           {/* 3D Flip Card */}
-          <FlipCard 
+          <FlipCard
             day={currentDay}
             isFlipped={showGift}
             onFlip={handleOpenGift}
             onReset={() => setShowGift(false)}
+            partnerName={partnerName}
           />
         </div>
       )}
 
       {/* Navigation dock */}
       {started && (
-        <NavigationDock 
-          currentIndex={dayIndex} 
+        <NavigationDock
+          currentIndex={dayIndex}
           setIndex={handlePageChange}
           lockedIndices={lockedIndices}
         />
