@@ -189,7 +189,7 @@ const FlipCard = ({
               <span className="block text-4xl md:text-5xl text-foreground/15 font-serif leading-none mb-2">
                 "
               </span>
-              <p className="text-lg md:text-xl font-medium italic text-foreground/90 font-romantic leading-relaxed line-clamp-3">
+              <p className="text-lg md:text-xl italic text-foreground/90 font-romantic leading-relaxed line-clamp-3">
                 {day.message}
               </p>
               <span className="block text-4xl md:text-5xl text-foreground/15 font-serif leading-none mt-2 text-right">
@@ -209,7 +209,7 @@ const FlipCard = ({
               </p>
               <p
                 key={day.id} // Force re-render when day changes to fix gradient text issue
-                className="font-romantic text-2xl md:text-3xl font-bold"
+                className="font-romantic text-2xl md:text-3xl"
                 style={{
                   background: day.gradient,
                   WebkitBackgroundClip: "text",
