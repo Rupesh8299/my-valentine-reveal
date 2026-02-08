@@ -4,6 +4,7 @@ import { DayData } from "@/lib/valentineData";
 import GlowButton from "./GlowButton";
 import SpotlightCard from "./SpotlightCard";
 import MessageInput from "./MessageInput";
+import GradientText from "./GradientText";
 
 
 interface FlipCardProps {
@@ -83,14 +84,21 @@ const FlipCard = ({
                 </div>
               </motion.div>
 
-              <motion.h1
+              <motion.div
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.4 }}
-                className="text-3xl md:text-5xl lg:text-6xl font-black tracking-tight text-foreground"
+                className="relative"
               >
-                {day.name}
-              </motion.h1>
+                <GradientText
+                  colors={day.colors}
+                  animationSpeed={6}
+                  showBorder={false}
+                  className="text-3xl md:text-5xl lg:text-6xl font-black tracking-tight"
+                >
+                  {day.name}
+                </GradientText>
+              </motion.div>
 
               <motion.p
                 initial={{ opacity: 0 }}

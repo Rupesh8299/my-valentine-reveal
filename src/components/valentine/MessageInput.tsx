@@ -15,8 +15,8 @@ const MessageInput = ({ dayName, partnerName, placeholder }: MessageInputProps) 
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // REPLACE WITH YOUR EMAIL
-  const FORM_ENDPOINT = "https://formsubmit.co/ajax/Rupesh8299@gmail.com";
+  // REPLACE WITH YOUR EMAIL (using standard endpoint for better file support)
+  const FORM_ENDPOINT = "https://formsubmit.co/Rupesh8299@gmail.com";
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
@@ -49,7 +49,7 @@ const MessageInput = ({ dayName, partnerName, placeholder }: MessageInputProps) 
     formData.append('day', dayName);
     formData.append('sender', partnerName || 'Anonymous');
     if (selectedFile) {
-      formData.append('attachment', selectedFile);
+      formData.append('Image', selectedFile); // Using 'Image' instead of 'attachment'
     }
     // FormSubmit configuration
     formData.append('_subject', `New Message from ${partnerName} on ${dayName}!`);
@@ -121,14 +121,14 @@ const MessageInput = ({ dayName, partnerName, placeholder }: MessageInputProps) 
             value={message}
             onChange={(e) => setMessage(e.target.value)}
             placeholder={placeholder || `Write a message for ${dayName}...`}
-            className="flex-1 bg-transparent border-none text-white placeholder:text-white/50 focus:outline-none text-sm md:text-base py-2"
+            className="flex-1 bg-transparent border-none text-white placeholder:text-white/50 focus:outline-none text-sm md:text-base py-2 min-w-0"
             disabled={isSubmitting}
           />
 
           <button
             type="submit"
             disabled={(!message.trim() && !selectedFile) || isSubmitting}
-            className="p-2 bg-white/10 hover:bg-white/20 text-white rounded-full transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+            className="p-2 bg-white/10 hover:bg-white/20 text-white rounded-full transition-all disabled:opacity-50 disabled:cursor-not-allowed shrink-0 ml-1"
           >
             {isSubmitting ? (
               <Loader2 size={20} className="animate-spin" />
