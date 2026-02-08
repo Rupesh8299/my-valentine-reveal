@@ -139,33 +139,7 @@ const FlipCard = ({
               }}
             />
 
-            {/* Decorative sparkles */}
-            <div className="absolute inset-0 pointer-events-none">
-              {[...Array(6)].map((_, i) => (
-                <motion.div
-                  key={i}
-                  initial={{ opacity: 0, scale: 0 }}
-                  animate={{
-                    opacity: [0, 1, 0],
-                    scale: [0, 1, 0],
-                    x: Math.random() * 100 - 50,
-                    y: Math.random() * 100 - 50,
-                  }}
-                  transition={{
-                    duration: 2 + Math.random() * 2,
-                    repeat: Infinity,
-                    delay: Math.random() * 2,
-                  }}
-                  className="absolute text-2xl"
-                  style={{
-                    left: `${20 + Math.random() * 60}%`,
-                    top: `${20 + Math.random() * 60}%`,
-                  }}
-                >
-                  ✨
-                </motion.div>
-              ))}
-            </div>
+
 
             {/* Reset button */}
             <button
