@@ -14,6 +14,7 @@ import NavigationDock from "@/components/valentine/NavigationDock";
 import IntroOverlay from "@/components/valentine/IntroOverlay";
 import TransitionModal from "@/components/valentine/TransitionModal";
 import AudioControls from "@/components/valentine/AudioControls";
+import MessageInput from "@/components/valentine/MessageInput";
 
 const Index = () => {
   // Main game logic
@@ -258,6 +259,7 @@ const Index = () => {
             onReset={() => setShowGift(false)}
             partnerName={partnerName}
           />
+          
         </div>
       )}
 

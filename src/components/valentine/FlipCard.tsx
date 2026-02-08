@@ -3,6 +3,7 @@ import { RefreshCcw } from "lucide-react";
 import { DayData } from "@/lib/valentineData";
 import GlowButton from "./GlowButton";
 import SpotlightCard from "./SpotlightCard";
+import MessageInput from "./MessageInput";
 
 
 interface FlipCardProps {
@@ -121,7 +122,7 @@ const FlipCard = ({
 
         {/* BACK OF CARD */}
         <div className="absolute inset-0 backface-hidden rotate-y-180">
-          <div className="w-full h-full glass-card-strong rounded-3xl md:rounded-4xl p-6 md:p-10 flex flex-col items-center justify-between text-center relative overflow-hidden">
+          <div className="w-full h-full glass-card-strong rounded-3xl md:rounded-4xl p-6 md:p-10 flex flex-col items-center justify-between text-center relative overflow-y-auto custom-scrollbar">
             {/* Background radial gradient */}
             <div
               className="absolute inset-0 opacity-20 pointer-events-none"
@@ -180,6 +181,22 @@ const FlipCard = ({
                 {day.confettiEmoji}
               </span>
             </motion.div>
+
+            {/* Message Input for specific days */}
+            {['promise', 'kiss', 'valentine'].includes(day.id) && (
+              <div className="w-full px-2 z-30 mb-2">
+                <MessageInput 
+                  dayName={day.name} 
+                  partnerName={partnerName}
+                  placeholder={
+                    day.id === 'promise' ? "Promise me !!" :
+                    day.id === 'kiss' ? "Where's my Kiss Babe !!" :
+                    day.id === 'valentine' ? "Say i'll Listen..." :
+                    `Write a message for ${day.name}...`
+                  }
+                />
+              </div>
+            )}
 
             {/* Quote section */}
             <motion.div

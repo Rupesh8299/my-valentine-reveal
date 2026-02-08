@@ -10,26 +10,26 @@ const TransitionModal = ({ message }: TransitionModalProps) => {
   if (!message) return null;
 
   return (
-    <div className="fixed bottom-8 left-4 z-50 pointer-events-none">
+    <div className="fixed bottom-24 left-4 z-[100] pointer-events-none">
       <div className="relative">
         {/* Floating hearts effect */}
         <FloatingHearts />
         
         {/* Helper message bubble */}
         <motion.div
-          initial={{ opacity: 0, y: 20, scale: 0.8 }}
-          animate={{ opacity: 1, y: 0, scale: 1 }}
-          exit={{ opacity: 0, y: -20, scale: 0.8 }}
-          className="relative ml-2"
+          initial={{ opacity: 0, scale: 0.9, y: 10 }}
+          animate={{ opacity: 1, scale: 1, y: 0 }}
+          exit={{ opacity: 0, scale: 0.9, y: 10 }}
+          className="relative"
         >
-          <div className="glass-card px-6 py-4 rounded-2xl rounded-bl-sm border border-white/20 shadow-xl backdrop-blur-xl bg-black/40">
-            <p className="text-lg md:text-xl font-bold text-white whitespace-nowrap">
+          <div className="bg-black border border-white/20 px-6 py-4 rounded-2xl rounded-bl-sm shadow-2xl">
+            <p className="text-lg md:text-xl font-bold text-white whitespace-nowrap drop-shadow-md">
               {message}
             </p>
           </div>
           
-          {/* Triangle pointer */}
-          <div className="absolute -bottom-2 left-0 w-4 h-4 bg-black/40 backdrop-blur-xl border-l border-b border-white/20 transform rotate-45" />
+          {/* Triangle pointer (left-aligned) */}
+          <div className="absolute -bottom-2 left-0 w-4 h-4 bg-black border-l border-b border-white/20 transform rotate-45" />
         </motion.div>
       </div>
     </div>
