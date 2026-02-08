@@ -2,6 +2,8 @@ import { motion } from "framer-motion";
 import { RefreshCcw } from "lucide-react";
 import { DayData } from "@/lib/valentineData";
 import GlowButton from "./GlowButton";
+import SpotlightCard from "./SpotlightCard";
+
 
 interface FlipCardProps {
   day: DayData;
@@ -34,7 +36,7 @@ const FlipCard = ({
       >
         {/* FRONT OF CARD */}
         <div className="absolute inset-0 backface-hidden">
-          <div className="w-full h-full glass-card-strong rounded-3xl md:rounded-4xl p-6 md:p-10 flex flex-col items-center justify-center gap-6 md:gap-8 text-center relative">
+          <SpotlightCard className="w-full h-full glass-card-strong rounded-3xl md:rounded-4xl p-6 md:p-10 flex flex-col items-center justify-center gap-6 md:gap-8 text-center relative" spotlightColor="rgba(255, 255, 255, 0.2)">
             {/* Background gradient accent */}
             <div
               className="absolute -top-32 -left-32 w-80 h-80 rounded-full blur-3xl opacity-20 pointer-events-none transition-colors duration-700"
@@ -114,7 +116,7 @@ const FlipCard = ({
                 Babe!!
               </GlowButton>
             </motion.div>
-          </div>
+          </SpotlightCard>
         </div>
 
         {/* BACK OF CARD */}

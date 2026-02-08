@@ -8,7 +8,7 @@ import {
   isFuture,
   getInitialDayIndex,
 } from "@/lib/valentineData";
-import FluidBackground from "@/components/valentine/FluidBackground";
+import Aurora from "@/components/valentine/Aurora";
 import FlipCard from "@/components/valentine/FlipCard";
 import NavigationDock from "@/components/valentine/NavigationDock";
 import IntroOverlay from "@/components/valentine/IntroOverlay";
@@ -184,7 +184,16 @@ const Index = () => {
       <audio ref={audioRef} loop crossOrigin="anonymous" />
 
       {/* Dynamic fluid background */}
-      <FluidBackground colors={currentDay.colors} />
+      {/* Aurora background */}
+      <div className="fixed inset-0 z-0">
+        <Aurora
+          colorStops={currentDay.colors}
+          blend={0.5}
+          amplitude={1.0}
+          speed={0.5}
+        />
+        <div className="absolute inset-0 bg-black/20 backdrop-blur-[1px]" />
+      </div>
 
       {/* Intro overlay */}
       <AnimatePresence>
