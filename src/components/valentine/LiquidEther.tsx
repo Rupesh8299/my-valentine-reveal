@@ -349,10 +349,7 @@ export default function LiquidEther({
           if (this.active) this.forceStop();
           return;
         }
-        if (this.mouse.isHoverInside) {
-          if (this.active) this.forceStop();
-          return;
-        }
+        // Removed isHoverInside check to allow auto-resume even if cursor is inside (but stationary)
         if (!this.active) {
           this.active = true;
           this.current.copy(this.mouse.coords);
@@ -1004,7 +1001,7 @@ export default function LiquidEther({
       props: any;
       output!: Output;
       autoDriver?: AutoDriver;
-      lastUserInteraction = performance.now();
+      lastUserInteraction = 0; // Start immediately
       running = false;
       private _loop = this.loop.bind(this);
       private _resize = this.resize.bind(this);
