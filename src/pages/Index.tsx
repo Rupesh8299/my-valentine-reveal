@@ -8,7 +8,7 @@ import {
   isFuture,
   getInitialDayIndex,
 } from "@/lib/valentineData";
-import Aurora from "@/components/valentine/Aurora";
+import LiquidEther from "@/components/valentine/LiquidEther";
 import FlipCard from "@/components/valentine/FlipCard";
 import NavigationDock from "@/components/valentine/NavigationDock";
 import IntroOverlay from "@/components/valentine/IntroOverlay";
@@ -186,14 +186,26 @@ const Index = () => {
 
       {/* Dynamic fluid background */}
       {/* Aurora background */}
+      {/* Liquid Ether Background */}
       <div className="fixed inset-0 z-0">
-        <Aurora
-          colorStops={currentDay.colors}
-          blend={0.5}
-          amplitude={1.0}
-          speed={0.5}
+        <LiquidEther
+          colors={currentDay.colors}
+          mouseForce={20}
+          cursorSize={100}
+          isViscous
+          viscous={30}
+          iterationsViscous={32}
+          iterationsPoisson={32}
+          resolution={0.5}
+          isBounce={false}
+          autoDemo
+          autoSpeed={0.5}
+          autoIntensity={2.5}
+          takeoverDuration={0.25}
+          autoResumeDelay={3000}
+          autoRampDuration={0.6}
         />
-        <div className="absolute inset-0 bg-black/20 backdrop-blur-[1px]" />
+        <div className="absolute inset-0 bg-black/10 backdrop-blur-[1px]" />
       </div>
 
       {/* Intro overlay */}
