@@ -13,6 +13,7 @@ interface FlipCardProps {
   onFlip: () => void;
   onReset: () => void;
   partnerName: string;
+  onWrongTap?: () => void;
 }
 
 const FlipCard = ({
@@ -21,6 +22,7 @@ const FlipCard = ({
   onFlip,
   onReset,
   partnerName,
+  onWrongTap,
 }: FlipCardProps) => {
   const Icon = day.icon;
 
@@ -55,7 +57,8 @@ const FlipCard = ({
               initial={{ opacity: 0, y: -10 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.2 }}
-              className="inline-flex items-center gap-2 px-5 py-2 rounded-full glass-card border border-white/10 text-xs md:text-sm font-medium tracking-wider uppercase"
+              onClick={onWrongTap}
+              className="inline-flex items-center gap-2 px-5 py-2 rounded-full glass-card border border-white/10 text-xs md:text-sm font-medium tracking-wider uppercase cursor-pointer active:scale-95 transition-transform select-none"
             >
               <span
                 className="w-2 h-2 rounded-full animate-pulse"
@@ -78,8 +81,9 @@ const FlipCard = ({
                   style={{ background: day.gradient }}
                 />
                 <div
-                  className="relative w-20 h-20 md:w-28 md:h-28 rounded-full flex items-center justify-center shadow-2xl"
+                  className="relative w-20 h-20 md:w-28 md:h-28 rounded-full flex items-center justify-center shadow-2xl cursor-pointer active:scale-95 transition-transform"
                   style={{ background: day.gradient }}
+                  onClick={onWrongTap}
                 >
                   <Icon className="w-10 h-10 md:w-14 md:h-14 text-white drop-shadow-lg" />
                 </div>
@@ -89,7 +93,8 @@ const FlipCard = ({
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.4 }}
-                className="relative"
+                className="relative cursor-pointer select-none active:scale-95 transition-transform"
+                onClick={onWrongTap}
               >
                 <GradientText
                   colors={day.colors}
@@ -105,7 +110,8 @@ const FlipCard = ({
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 transition={{ delay: 0.5 }}
-                className="text-sm md:text-base text-muted-foreground font-light"
+                className="text-sm md:text-base text-muted-foreground font-light cursor-pointer select-none hover:text-foreground transition-colors"
+                onClick={onWrongTap}
               >
                 Click Here
               </motion.p>
@@ -186,7 +192,8 @@ const FlipCard = ({
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.5 }}
-              className="relative z-10 w-full px-2"
+              className="relative z-10 w-full px-2 cursor-pointer select-none active:scale-95 transition-transform"
+              onClick={onWrongTap}
             >
               <span className="block text-4xl md:text-5xl text-foreground/15 font-serif leading-none mb-2">
                 "

@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useMemo } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import confetti from "canvas-confetti";
+import { toast } from "sonner";
 
 import {
   WEEK_DATA,
@@ -25,6 +26,13 @@ const Index = () => {
   const [showTransition, setShowTransition] = useState(false);
   const [transitionMessage, setTransitionMessage] = useState("");
   const [partnerName, setPartnerName] = useState(CONFIG.partnerName);
+  
+  // Easter Egg State
+  const SECRET_SONG_URL = "/music/Sitaare.mp3";
+  const [tapCount, setTapCount] = useState(0);
+  const [easterEggUnlocked, setEasterEggUnlocked] = useState(false);
+  const clickTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
   const audioRef = useRef<HTMLAudioElement>(null);
   const seenPopups = useRef(new Set<number>());
 
@@ -52,16 +60,31 @@ const Index = () => {
   // 1. Handle Day Change (Reset gift, Load new audio)
   useEffect(() => {
     setShowGift(false);
-    if (audioRef.current && started) {
-      // Only set src and play if the game has started
-      audioRef.current.src = WEEK_DATA[dayIndex].audio;
-      if (!isMuted) {
+    // Always load the key audio track for the day immediately
+    if (audioRef.current) {
+      // If Easter egg is unlocked, DO NOT change the song when switching days
+      if (easterEggUnlocked) {
+          if (!audioRef.current.src.includes("Sitaare.mp3")) {
+             // If for some reason it's not the secret song, set it (fallback)
+             audioRef.current.src = SECRET_SONG_URL;
+          }
+      } else {
+        // Normal behavior: Set day's audio
+        // Only set src if it's different to avoid reloading
+        if (!audioRef.current.src.includes(WEEK_DATA[dayIndex].audio)) {
+            audioRef.current.src = WEEK_DATA[dayIndex].audio;
+            audioRef.current.load();
+        }
+      }
+
+      // If started, ensure it plays
+      if (started && !isMuted) {
         audioRef.current
           .play()
           .catch((error) => console.log("Audio play failed:", error));
       }
     }
-  }, [dayIndex, started]);
+  }, [dayIndex, started, easterEggUnlocked]);
 
   // 2. Handle Play/Pause Toggle (Mute/Unmute/Start)
   useEffect(() => {
@@ -167,7 +190,79 @@ const Index = () => {
       origin: { x: 0.5, y: 0.5 },
       colors: currentDay.colors,
       shapes: ["circle", "square"],
-      scalar: 1.5,
+    });
+  };
+
+  // Easter Egg Logic - Moved to top
+
+
+  // Preload Audio Assets
+  useEffect(() => {
+    // Preload Secret Song
+    const secretAudio = new Audio(SECRET_SONG_URL);
+    secretAudio.preload = "auto";
+    secretAudio.load();
+
+    // Preload Current Day Song
+    if (dayIndex >= 0 && WEEK_DATA[dayIndex]) {
+       const dayAudio = new Audio(WEEK_DATA[dayIndex].audio);
+       dayAudio.preload = "auto";
+       dayAudio.load();
+    }
+  }, [dayIndex]);
+
+  const handleEasterEggTap = () => {
+    // If already unlocked, just show love message without changing song/resetting
+    if (easterEggUnlocked) {
+      toast.success("I Love You! 💖", {
+        description: "You found the secret song! 🎶",
+        duration: 3000,
+      });
+      return;
+    }
+
+    // Clear existing timeout to allow rapid tapping
+    if (clickTimeoutRef.current) {
+      clearTimeout(clickTimeoutRef.current);
+    }
+
+    setTapCount(prev => {
+      const newCount = prev + 1;
+      
+      if (newCount < 5) {
+        toast("No!! 🤫", {
+          description: "Keep tapping...",
+          duration: 1000,
+        });
+      } else if (newCount === 5) {
+        setEasterEggUnlocked(true); // Unlock permanently
+        toast.success("I Love You! 💖", {
+          description: "You found the secret song! 🎶",
+          duration: 3000,
+        });
+        
+        // Trigger song change
+        if (audioRef.current) {
+          audioRef.current.src = SECRET_SONG_URL;
+          audioRef.current.play().catch(e => console.log("Secret song play failed:", e));
+        }
+        
+        return 5; // Keep at 5 or reset, doesn't matter as unlocked check handles it
+      }
+      
+      // Reset count if no tap for 1 second
+      clickTimeoutRef.current = setTimeout(() => {
+        setTapCount(0);
+      }, 1000);
+
+      return newCount;
+    });
+  };
+
+  const handleWrongTap = () => {
+    toast("Not this!! 😅", {
+      description: "Try tapping somewhere else...",
+      duration: 1000,
     });
   };
 
@@ -189,7 +284,7 @@ const Index = () => {
   return (
     <div className="fixed inset-0 w-full h-[100dvh] overflow-hidden text-foreground selection:bg-primary selection:text-primary-foreground">
       {/* Hidden audio element */}
-      <audio ref={audioRef} loop crossOrigin="anonymous" preload="none" />
+      <audio ref={audioRef} loop crossOrigin="anonymous" preload="auto" />
 
       {/* Dynamic fluid background */}
       {/* Aurora background */}
@@ -237,7 +332,9 @@ const Index = () => {
               initial={{ opacity: 0, x: -20 }}
               animate={{ opacity: 1, x: 0 }}
               transition={{ delay: 0.2 }}
-              className="flex items-center gap-2 glass-card px-4 py-2 rounded-full border border-white/10"
+              onClick={handleEasterEggTap}
+              whileTap={{ scale: 0.95 }}
+              className="flex items-center gap-2 glass-card px-4 py-2 rounded-full border border-white/10 cursor-pointer select-none active:bg-white/10 transition-colors"
             >
               <div
                 className="w-2 h-2 rounded-full animate-pulse"
@@ -260,10 +357,11 @@ const Index = () => {
             initial={{ opacity: 0, y: -10 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.4 }}
-            className="mb-6 md:mb-8 z-20"
+            className="relative mb-6 md:mb-8 z-20 cursor-pointer active:scale-95 transition-transform"
+            onClick={handleWrongTap}
           >
             <div
-              className="text-xs md:text-sm font-medium tracking-[0.3em] uppercase"
+              className="text-xs md:text-sm font-medium tracking-[0.3em] uppercase cursor-pointer select-none"
               style={{ color: currentDay.colors[0] }}
             >
               Day {dayIndex + 1} of 8
@@ -277,6 +375,7 @@ const Index = () => {
             onFlip={handleOpenGift}
             onReset={() => setShowGift(false)}
             partnerName={partnerName}
+            onWrongTap={handleWrongTap}
           />
           
         </div>
