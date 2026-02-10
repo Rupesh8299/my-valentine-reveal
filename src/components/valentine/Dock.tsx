@@ -39,6 +39,18 @@ const Dock = ({
         mouseX.set(Infinity);
         isHovered.set(0);
       }}
+      onTouchMove={(e) => {
+        // Handle touch interaction similarly to mouse
+        const touch = e.touches[0];
+        if (touch) {
+          mouseX.set(touch.pageX);
+          isHovered.set(1);
+        }
+      }}
+      onTouchEnd={() => {
+        mouseX.set(Infinity);
+        isHovered.set(0);
+      }}
       className={cn(
         "mx-auto flex w-fit gap-4 items-center rounded-2xl bg-gray-50/10 border border-white/10 px-4 py-3",
         className
@@ -81,8 +93,8 @@ const DockItem = ({ mouseX, baseItemSize, magnification, distance, item }: DockI
 
   const width = useSpring(widthSync, {
     mass: 0.1,
-    stiffness: 150,
-    damping: 12,
+    stiffness: 180, // Increased stiffness for snappier return
+    damping: 10,    // Reduced damping for less drag
   });
 
   const [isHovered, setIsHovered] = useState(false);

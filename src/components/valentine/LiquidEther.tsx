@@ -134,7 +134,6 @@ export default function LiquidEther({
       init(container: HTMLElement) {
         this.container = container;
         this.pixelRatio = Math.min(window.devicePixelRatio || 1, 2);
-        this.resize();
         this.renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
         // Always transparent
         this.renderer.autoClear = false;
@@ -145,6 +144,9 @@ export default function LiquidEther({
         el.style.width = '100%';
         el.style.height = '100%';
         el.style.display = 'block';
+        el.style.transform = ''; // Remove force GPU layer if it caused issues, or keep it. User focused on AA/Precision.
+        // Keeping will-change as it doesn't hurt visual quality usually, but let's revert to original clean state to be safe.
+        el.style.willChange = ''; 
         this.clock = new THREE.Clock();
         this.clock.start();
       }
@@ -859,8 +861,9 @@ export default function LiquidEther({
         this.createShaderPass();
       }
       getFloatType() {
-        const isIOS = /(iPad|iPhone|iPod)/i.test(navigator.userAgent);
-        return isIOS ? THREE.HalfFloatType : THREE.FloatType;
+        // Use HalfFloatType (16-bit) to reduce memory bandwidth
+        // This is visually indistinguishable from 32-bit for this effect but much lighter
+        return THREE.HalfFloatType;
       }
       createAllFBO() {
         const type = this.getFloatType();

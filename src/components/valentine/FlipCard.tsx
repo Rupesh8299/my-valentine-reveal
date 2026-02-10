@@ -35,6 +35,7 @@ const FlipCard = ({
           damping: 15,
         }}
         className="w-full h-full relative preserve-3d"
+        style={{ willChange: "transform" }}
       >
         {/* FRONT OF CARD */}
         <div className="absolute inset-0 backface-hidden">

@@ -37,6 +37,7 @@ const IntroOverlay = ({ onStart, partnerName }: IntroOverlayProps) => {
               ease: "linear",
             }}
             className="absolute text-primary/30"
+            style={{ willChange: "transform, opacity" }}
           >
             <Heart className="w-6 h-6 md:w-8 md:h-8 fill-current" />
           </motion.div>
