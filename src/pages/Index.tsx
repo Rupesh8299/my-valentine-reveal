@@ -14,7 +14,7 @@ import NavigationDock from "@/components/valentine/NavigationDock";
 import IntroOverlay from "@/components/valentine/IntroOverlay";
 import TransitionModal from "@/components/valentine/TransitionModal";
 import AudioControls from "@/components/valentine/AudioControls";
-import MessageInput from "@/components/valentine/MessageInput";
+
 
 const Index = () => {
   // Main game logic
@@ -26,6 +26,7 @@ const Index = () => {
   const [transitionMessage, setTransitionMessage] = useState("");
   const [partnerName, setPartnerName] = useState(CONFIG.partnerName);
   const audioRef = useRef<HTMLAudioElement>(null);
+  const seenPopups = useRef(new Set<number>());
 
   const lockedIndices = useMemo(() => {
     return WEEK_DATA.map((day, index) =>
@@ -51,16 +52,16 @@ const Index = () => {
   // 1. Handle Day Change (Reset gift, Load new audio)
   useEffect(() => {
     setShowGift(false);
-    if (audioRef.current) {
+    if (audioRef.current && started) {
+      // Only set src and play if the game has started
       audioRef.current.src = WEEK_DATA[dayIndex].audio;
-      // If already started and not muted, play the new track
-      if (!isMuted && started) {
+      if (!isMuted) {
         audioRef.current
           .play()
           .catch((error) => console.log("Audio play failed:", error));
       }
     }
-  }, [dayIndex]);
+  }, [dayIndex, started]);
 
   // 2. Handle Play/Pause Toggle (Mute/Unmute/Start)
   useEffect(() => {
@@ -75,6 +76,8 @@ const Index = () => {
     }
   }, [isMuted, started]);
 
+
+
   const currentDay = WEEK_DATA[dayIndex];
 
   // Handle page transition (immediate)
@@ -82,47 +85,48 @@ const Index = () => {
     setDayIndex(newIndex);
   };
 
-  // Handle confetti and popup on gift open
+  // 3. Automated Popups for ALL days (1.5s delay)
+  useEffect(() => {
+    if (started) {
+      const idx = dayIndex;
+
+      // Ensure popup runs only ONCE per day index per session
+      if (seenPopups.current.has(idx)) return;
+
+      let message = "";
+
+      // Define messages for each day
+      if (idx === 0) message = "Kaisa Hai?😁"; // Rose
+      else if (idx === 1) message = "Yeh wala?😉"; // Propose
+      else if (idx === 2) message = "😓"; // Chocolate
+      else if (idx === 4) message = "Enjoy Full Song 🎶"; // Promise
+      else if (idx === 7) message = "Last only for you!!🤍"; // Valentine
+
+      // If we have a message, schedule the popup
+      if (message) {
+        // Mark as seen immediately so it doesn't try again if effect re-runs quickly
+        seenPopups.current.add(idx);
+
+        const timer = setTimeout(() => {
+          setTransitionMessage(message);
+          setShowTransition(true);
+
+          // Hide popup automatically after 3 seconds
+          setTimeout(() => {
+            setShowTransition(false);
+          }, 3000);
+        }, 1500); // 1.5s delay after load
+
+        return () => clearTimeout(timer);
+      }
+    }
+  }, [dayIndex, started]);
+
+  // Handle confetti and flip on BUTTON CLICK only
   const handleOpenGift = () => {
-    // Determine popup message based on CURRENT day
-    let message = "";
-    const idx = dayIndex;
-
-    if (idx === 0) {
-      // Rose Day
-      message = "Kaisa Hai?😁";
-    } else if (idx === 1) {
-      // Propose Day
-      message = "Yeh wala?😉";
-    } else if (idx === 2) {
-      // Chocolate Day
-      message = "😓";
-    } else if (idx === 7) {
-      // Valentine's Day
-      message = "Yeh last only for you!!🙈";
-    }
-
-    // Show popup if there is a message
-    if (message) {
-      setTransitionMessage(message);
-      setShowTransition(true);
-
-      // Hide popup after delay
-      setTimeout(() => {
-        setShowTransition(false);
-      }, 3000);
-    }
-
-    // Trigger confetti and flip card (immediate or slight delay?)
-    // User asked for "page transitions" (flip) after popup?
-    // Let's add a small delay for the flip so they see the popup first
-    setTimeout(
-      () => {
-        triggerConfetti();
-        setShowGift(true);
-      },
-      message ? 1000 : 0
-    ); // 1s delay if message, else immediate
+    // Immediate flip and confetti (de-linked from popup)
+    triggerConfetti();
+    setShowGift(true);
   };
 
   const triggerConfetti = () => {
@@ -171,8 +175,11 @@ const Index = () => {
     setStarted(true);
     // Unmute on start
     setIsMuted(false);
+    
+    // Explicitly set the initial source and play when starting
     if (audioRef.current) {
       audioRef.current.src = currentDay.audio;
+      audioRef.current.load(); // Ensure loading starts
       audioRef.current
         .play()
         .catch((e) => console.log("Audio play failed:", e));
@@ -182,7 +189,7 @@ const Index = () => {
   return (
     <div className="fixed inset-0 w-full h-[100dvh] overflow-hidden text-foreground selection:bg-primary selection:text-primary-foreground">
       {/* Hidden audio element */}
-      <audio ref={audioRef} loop crossOrigin="anonymous" />
+      <audio ref={audioRef} loop crossOrigin="anonymous" preload="none" />
 
       {/* Dynamic fluid background */}
       {/* Aurora background */}

@@ -1,6 +1,7 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { Send, Image as ImageIcon, Loader2, X } from 'lucide-react';
 import { toast } from 'sonner';
+import { motion, AnimatePresence } from 'framer-motion';
 
 interface MessageInputProps {
   dayName: string;
@@ -13,6 +14,7 @@ const MessageInput = ({ dayName, partnerName, placeholder }: MessageInputProps) 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [showHighlight, setShowHighlight] = useState(true);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // REPLACE WITH YOUR EMAIL (using standard endpoint for better file support)
@@ -100,14 +102,37 @@ const MessageInput = ({ dayName, partnerName, placeholder }: MessageInputProps) 
         )}
 
         <div className="flex items-center gap-2">
-          <button
-            type="button"
-            onClick={() => fileInputRef.current?.click()}
-            className="p-2 text-white/70 hover:text-white transition-colors rounded-full hover:bg-white/10"
-            title="Attach photo"
-          >
-            <ImageIcon size={20} />
-          </button>
+          <div className="relative">
+            <AnimatePresence>
+              {showHighlight && (
+                <motion.div
+                  className="absolute -inset-2 rounded-full bg-white/30 -z-10 pointer-events-none"
+                  initial={{ scale: 0.5, opacity: 0.6 }}
+                  animate={{ 
+                    scale: 2.2, 
+                    opacity: 0 
+                  }}
+                  transition={{ 
+                    duration: 1.5, 
+                    ease: "easeOut",
+                    repeat: Infinity
+                  }}
+                  exit={{ opacity: 0 }}
+                />
+              )}
+            </AnimatePresence>
+            <button
+              type="button"
+              onClick={() => {
+                fileInputRef.current?.click();
+                setShowHighlight(false); // Stop highlight on click
+              }}
+              className="p-2 text-white/70 hover:text-white transition-colors rounded-full hover:bg-white/10 relative z-10"
+              title="Attach photo"
+            >
+              <ImageIcon size={20} />
+            </button>
+          </div>
           <input
             type="file"
             ref={fileInputRef}
@@ -119,7 +144,11 @@ const MessageInput = ({ dayName, partnerName, placeholder }: MessageInputProps) 
           <input
             type="text"
             value={message}
-            onChange={(e) => setMessage(e.target.value)}
+            onChange={(e) => {
+              setMessage(e.target.value);
+              setShowHighlight(false); // Stop highlight on typing
+            }}
+            onFocus={() => setShowHighlight(false)} // Stop highlight on focus
             placeholder={placeholder || `Write a message for ${dayName}...`}
             className="flex-1 bg-transparent border-none text-white placeholder:text-white/50 focus:outline-none text-sm md:text-base py-2 min-w-0"
             disabled={isSubmitting}

@@ -17,28 +17,29 @@ const GlowButton = ({ onClick, gradient, glowColor, children }: GlowButtonProps)
       onClick={onClick}
       className="relative group w-full md:w-auto"
     >
-      {/* Outer glow ring */}
-      <div 
-        className="absolute -inset-1 rounded-2xl opacity-50 blur-xl transition-all duration-500 group-hover:opacity-80 group-hover:blur-2xl"
+
+
+      {/* Pulsating Glow (Minimized) */}
+      <motion.div
+        className="absolute -inset-1 rounded-xl md:rounded-2xl opacity-40 blur-md pointer-events-none"
         style={{ background: gradient }}
+        animate={{
+          opacity: [0.3, 0.6, 0.3],
+          scale: [0.98, 1.02, 0.98],
+        }}
+        transition={{
+          duration: 2,
+          repeat: Infinity,
+          ease: "easeInOut",
+        }}
       />
       
-      {/* Pulsing glow */}
-      <div 
-        className="absolute -inset-2 rounded-2xl opacity-30 animate-pulse-glow"
-        style={{ 
-          background: gradient,
-          filter: 'blur(20px)',
-          '--glow-color': glowColor 
-        } as React.CSSProperties}
-      />
-
       {/* Button body */}
       <div 
         className="relative px-8 py-4 md:px-12 md:py-5 rounded-xl md:rounded-2xl font-bold text-lg md:text-xl text-primary-foreground flex items-center justify-center gap-3 transition-all duration-300 overflow-hidden"
         style={{ 
           background: gradient,
-          boxShadow: `0 10px 40px -10px ${glowColor}`
+          boxShadow: `0 4px 15px -3px ${glowColor}`
         }}
       >
         {/* Shimmer effect */}

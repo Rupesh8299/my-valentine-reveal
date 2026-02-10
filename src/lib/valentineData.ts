@@ -26,7 +26,7 @@ export interface DayData {
 export const CONFIG = {
   partnerName: "Rupesh",
   baseYear: 2026,
-  demoMode: false
+  demoMode: true
 };
 
 const createDate = (day: number) => new Date(2026, 1, day);
@@ -95,7 +95,7 @@ export const WEEK_DATA: DayData[] = [
     confettiEmoji: '🤝',
     gradient: 'linear-gradient(135deg, #7c3aed 0%, #8b5cf6 50%, #a78bfa 100%)',
     // Promise Day
-    audio: '/music/Ghostjustinbieber.mp3'
+    audio: '/music/LoveMeThodaAur.mp3'
   },
   {
     id: 'hug',
@@ -134,7 +134,7 @@ export const WEEK_DATA: DayData[] = [
     confettiEmoji: '❤️',
     gradient: 'linear-gradient(135deg, #dc2626 0%, #ef4444 50%, #f87171 100%)',
     // Valentine's Day
-    audio: '/music/tumhiho.mp3'
+    audio: '/music/RangJoLagyo.mp3'
   },
 ];
 
