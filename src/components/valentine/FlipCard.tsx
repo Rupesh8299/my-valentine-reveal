@@ -14,6 +14,7 @@ interface FlipCardProps {
   onReset: () => void;
   partnerName: string;
   onWrongTap?: () => void;
+  onIconTap?: () => void;
 }
 
 const FlipCard = ({
@@ -23,6 +24,7 @@ const FlipCard = ({
   onReset,
   partnerName,
   onWrongTap,
+  onIconTap,
 }: FlipCardProps) => {
   const Icon = day.icon;
 
@@ -83,7 +85,7 @@ const FlipCard = ({
                 <div
                   className="relative w-20 h-20 md:w-28 md:h-28 rounded-full flex items-center justify-center shadow-2xl cursor-pointer active:scale-95 transition-transform"
                   style={{ background: day.gradient }}
-                  onClick={onWrongTap}
+                  onClick={onIconTap || onWrongTap}
                 >
                   <Icon className="w-10 h-10 md:w-14 md:h-14 text-white drop-shadow-lg" />
                 </div>

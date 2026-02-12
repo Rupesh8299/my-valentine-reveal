@@ -15,6 +15,7 @@ import NavigationDock from "@/components/valentine/NavigationDock";
 import IntroOverlay from "@/components/valentine/IntroOverlay";
 import TransitionModal from "@/components/valentine/TransitionModal";
 import AudioControls from "@/components/valentine/AudioControls";
+import HeartStarField from "@/components/valentine/HeartStarField";
 
 
 const Index = () => {
@@ -26,6 +27,7 @@ const Index = () => {
   const [showTransition, setShowTransition] = useState(false);
   const [transitionMessage, setTransitionMessage] = useState("");
   const [partnerName, setPartnerName] = useState(CONFIG.partnerName);
+  const [showHeartbeat, setShowHeartbeat] = useState(false);
   
   // Easter Egg State
   const SECRET_SONG_URL = "/music/Sitaare.mp3";
@@ -266,6 +268,10 @@ const Index = () => {
     });
   };
 
+  const handleHeartbeatTrigger = () => {
+    setShowHeartbeat(true);
+  };
+
   const handleStart = () => {
     setStarted(true);
     // Unmute on start
@@ -376,6 +382,7 @@ const Index = () => {
             onReset={() => setShowGift(false)}
             partnerName={partnerName}
             onWrongTap={handleWrongTap}
+            onIconTap={dayIndex === 7 ? handleHeartbeatTrigger : handleWrongTap}
           />
           
         </div>
@@ -389,6 +396,13 @@ const Index = () => {
           lockedIndices={lockedIndices}
         />
       )}
+
+      {/* Heartbeat Overlay */}
+      <AnimatePresence>
+        {showHeartbeat && (
+            <HeartStarField onClose={() => setShowHeartbeat(false)} partnerName={partnerName} />
+        )}
+      </AnimatePresence>
     </div>
   );
 };

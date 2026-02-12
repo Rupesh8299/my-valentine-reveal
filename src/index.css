@@ -329,3 +329,38 @@
     animation: spin-slow 20s linear infinite;
   }
 }
+
+/* Heartbeat Message Popup */
+.message-popup {
+  position: absolute;
+  /* font-family: 'Patrick Hand', cursive; REMOVING to match full app font */
+  color: #fff;
+  font-size: 1.2rem;
+  font-weight: 700;
+  text-shadow: 0 0 20px hsl(340 82% 52% / 0.6), 0 0 20px hsl(280 60% 50% / 0.6);
+  pointer-events: none;
+  animation: popMessage 2s ease-out forwards;
+  white-space: nowrap;
+  z-index: 100;
+}
+
+@keyframes popMessage {
+  0% {
+    opacity: 0;
+    transform: scale(0.3);
+  }
+
+  20% {
+    opacity: 1;
+    transform: scale(1.2);
+  }
+
+  40% {
+    transform: scale(1);
+  }
+
+  100% {
+    opacity: 0;
+    transform: scale(1) translateY(-60px);
+  }
+}
