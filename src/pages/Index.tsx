@@ -16,6 +16,7 @@ import IntroOverlay from "@/components/valentine/IntroOverlay";
 import TransitionModal from "@/components/valentine/TransitionModal";
 import AudioControls from "@/components/valentine/AudioControls";
 import HeartStarField from "@/components/valentine/HeartStarField";
+import { useDebounce } from "@/hooks/useDebounce";
 
 
 const Index = () => {
@@ -58,35 +59,43 @@ const Index = () => {
     setDayIndex(getInitialDayIndex());
   }, []); // Run only once
 
+  // Debounce audio switching to prevent thrashing during rapid navigation
+  const debouncedDayIndex = useDebounce(dayIndex, 500); // 500ms delay
+
   // Reset gift state when day changes
-  // 1. Handle Day Change (Reset gift, Load new audio)
   useEffect(() => {
     setShowGift(false);
-    // Always load the key audio track for the day immediately
+  }, [dayIndex]);
+
+  // Handle Audio Logic (Debounced)
+  useEffect(() => {
     if (audioRef.current) {
       // If Easter egg is unlocked, DO NOT change the song when switching days
       if (easterEggUnlocked) {
-          if (!audioRef.current.src.includes("Sitaare.mp3")) {
-             // If for some reason it's not the secret song, set it (fallback)
-             audioRef.current.src = SECRET_SONG_URL;
-          }
+        if (!audioRef.current.src.includes("Sitaare.mp3")) {
+           // If for some reason it's not the secret song, set it (fallback)
+           audioRef.current.src = SECRET_SONG_URL;
+           audioRef.current.play().catch((e) => console.log("Secret song play failed:", e));
+        }
       } else {
-        // Normal behavior: Set day's audio
-        // Only set src if it's different to avoid reloading
-        if (!audioRef.current.src.includes(WEEK_DATA[dayIndex].audio)) {
-            audioRef.current.src = WEEK_DATA[dayIndex].audio;
-            audioRef.current.load();
+        // Normal behavior: Set day's audio based on DEBOUNCED index
+        // This prevents loading all songs while swiping quickly
+        if (dayIndex >= 0 && WEEK_DATA[debouncedDayIndex]) {
+            const targetAudio = WEEK_DATA[debouncedDayIndex].audio;
+            
+            // Only set src if it's different
+            if (!audioRef.current.src.includes(targetAudio)) {
+                audioRef.current.src = targetAudio;
+                audioRef.current.load();
+                
+                if (started && !isMuted) {
+                    audioRef.current.play().catch((e) => console.log("Audio play failed:", e));
+                }
+            }
         }
       }
-
-      // If started, ensure it plays
-      if (started && !isMuted) {
-        audioRef.current
-          .play()
-          .catch((error) => console.log("Audio play failed:", error));
-      }
     }
-  }, [dayIndex, started, easterEggUnlocked]);
+  }, [debouncedDayIndex, started, isMuted, easterEggUnlocked]);
 
   // 2. Handle Play/Pause Toggle (Mute/Unmute/Start)
   useEffect(() => {
@@ -198,20 +207,19 @@ const Index = () => {
   // Easter Egg Logic - Moved to top
 
 
-  // Preload Audio Assets
+  // Preload Audio Assets (ONCE on mount)
   useEffect(() => {
     // Preload Secret Song
     const secretAudio = new Audio(SECRET_SONG_URL);
     secretAudio.preload = "auto";
-    secretAudio.load();
-
-    // Preload Current Day Song
-    if (dayIndex >= 0 && WEEK_DATA[dayIndex]) {
-       const dayAudio = new Audio(WEEK_DATA[dayIndex].audio);
-       dayAudio.preload = "auto";
-       dayAudio.load();
-    }
-  }, [dayIndex]);
+    // We don't force load() here to strictly save data, relying on preload="auto" usually works,
+    // but explicit load() ensures it starts fetching.
+    // However, only do this ONCE.
+    
+    // Optional: Preload the FIRST day's song immediately
+    const firstDayAudio = new Audio(WEEK_DATA[0].audio);
+    firstDayAudio.preload = "auto";
+  }, []);
 
   const handleEasterEggTap = () => {
     // If already unlocked, just show love message without changing song/resetting
