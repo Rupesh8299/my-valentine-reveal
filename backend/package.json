@@ -1,0 +1,18 @@
+{
+  "name": "valentine-reveal-api",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "node --watch src/server.js",
+    "start": "node src/server.js"
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "dotenv": "^17.4.2",
+    "express": "^4.21.2",
+    "multer": "^2.0.2",
+    "sql.js": "^1.14.2",
+    "ws": "^8.18.0"
+  }
+}
