@@ -5,6 +5,7 @@ import multer from "multer";
 import crypto from "node:crypto";
 import { createServer } from "node:http";
 import { Readable } from "node:stream";
+import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { WebSocketServer } from "ws";
@@ -617,7 +618,16 @@ app.use((error, _request, response, _next) => {
 });
 
 app.use(express.static(frontendDist));
-app.get("*", (_request, response) => response.sendFile(path.join(frontendDist, "index.html")));
+app.get("*", (_request, response) => {
+  const indexPath = path.join(frontendDist, "index.html");
+  if (fs.existsSync(indexPath)) {
+    return response.sendFile(indexPath);
+  }
+  response.json({
+    status: "ok",
+    message: "Valentine Reveal Backend API is running! 💖",
+  });
+});
 
 httpServer.listen(port, () => {
   console.log(`API server listening on http://localhost:${port}`);
