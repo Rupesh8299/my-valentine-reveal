@@ -2,7 +2,7 @@ import { FormEvent, useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { ArrowRight, Heart, LoaderCircle, Sparkles } from "lucide-react";
 import { toast } from "sonner";
-import { login, loginWithSupabase, register, registerWithSupabase, signInWithGoogle, syncSupabaseSession } from "@/lib/auth";
+import { currentAccount, login, loginWithSupabase, register, registerWithSupabase, signInWithGoogle, syncSupabaseSession } from "@/lib/auth";
 import { supabase } from "@/lib/supabase";
 import { motion } from "framer-motion";
 
@@ -17,11 +17,13 @@ const Auth = ({ mode }: { mode: "login" | "register" }) => {
   const isRegister = mode === "register";
 
   useEffect(() => {
-    syncSupabaseSession()
+    currentAccount()
       .then((account) => {
         if (account) navigate("/dashboard", { replace: true });
       })
-      .catch(() => undefined);
+      .catch(() => {
+        // Not logged in with a valid cookie, stay on the login page!
+      });
   }, [navigate]);
 
   async function submit(event: FormEvent) {
