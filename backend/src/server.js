@@ -179,10 +179,10 @@ const hashValue = (value) => crypto.createHash("sha256").update(value).digest("h
 const now = () => new Date().toISOString();
 const sessionCookie = "valentine_session";
 
-function sessionAccount(request) {
+async function sessionAccount(request) {
   const token = request.headers.cookie?.match(new RegExp(`${sessionCookie}=([^;]+)`))?.[1];
   if (!token || !sessionSecret) return null;
-  return findSession(hashValue(`${sessionSecret}:${token}`));
+  return await findSession(hashValue(`${sessionSecret}:${token}`));
 }
 
 function sessionToken(request) {
@@ -198,7 +198,7 @@ app.post("/api/auth/register", async (request, response, next) => {
     if (!firstName || !email || password.length < 10) {
       return response.status(400).json({ error: "Enter your first name, a valid email, and a password of at least 10 characters." });
     }
-    if (findAccountByEmail(email)) return response.status(409).json({ error: "An account already exists." });
+    if (await findAccountByEmail(email)) return response.status(409).json({ error: "An account already exists." });
     const salt = crypto.randomBytes(16).toString("hex");
     const passwordHash = await new Promise((resolve, reject) => {
       crypto.scrypt(password, salt, 64, (error, derivedKey) => {
@@ -228,7 +228,7 @@ app.post("/api/auth/supabase-session", async (request, response, next) => {
     });
     const user = await userResponse.json();
     if (!userResponse.ok || !user.email) return response.status(401).json({ error: "Supabase session is invalid." });
-    let account = findAccountByEmail(user.email);
+    let account = await findAccountByEmail(user.email);
     if (!account) {
       const firstName = String(user.user_metadata?.first_name || user.user_metadata?.full_name || "Valentine").trim().slice(0, 80) || "Valentine";
       const lastName = String(user.user_metadata?.last_name || "").trim().slice(0, 80);
@@ -242,7 +242,7 @@ app.post("/api/auth/supabase-session", async (request, response, next) => {
         passwordHash,
         createdAt: now(),
       });
-      account = findAccountByEmail(user.email);
+      account = await findAccountByEmail(user.email);
     }
     if (!sessionSecret) return response.status(503).json({ error: "Authentication is not configured." });
     const token = crypto.randomBytes(32).toString("base64url");
@@ -266,7 +266,7 @@ app.post("/api/auth/login", async (request, response, next) => {
   try {
     const email = typeof request.body.email === "string" ? request.body.email.trim().toLowerCase() : "";
     const password = typeof request.body.password === "string" ? request.body.password : "";
-    const account = findAccountByEmail(email);
+    const account = await findAccountByEmail(email);
     if (!account) return response.status(401).json({ error: "Invalid email or password." });
     const [salt, expected] = account.password_hash.split(":");
     const actual = await new Promise((resolve, reject) => {
@@ -296,20 +296,24 @@ app.post("/api/auth/login", async (request, response, next) => {
   }
 });
 
-app.get("/api/auth/me", (request, response) => {
-  const account = sessionAccount(request);
-  if (!account) return response.status(401).json({ error: "You are not signed in." });
-  response.json({
-    id: account.account_id,
-    email: account.email,
-    firstName: account.first_name,
-    lastName: account.last_name,
-  });
+app.get("/api/auth/me", async (request, response, next) => {
+  try {
+    const account = await sessionAccount(request);
+    if (!account) return response.status(401).json({ error: "You are not signed in." });
+    response.json({
+      id: account.account_id,
+      email: account.email,
+      firstName: account.first_name,
+      lastName: account.last_name,
+    });
+  } catch (error) {
+    next(error);
+  }
 });
 
 app.patch("/api/auth/profile", async (request, response, next) => {
   try {
-    const account = sessionAccount(request);
+    const account = await sessionAccount(request);
     if (!account) return response.status(401).json({ error: "You are not signed in." });
     const firstName = typeof request.body.firstName === "string" ? request.body.firstName.trim() : "";
     const lastName = typeof request.body.lastName === "string" ? request.body.lastName.trim() : "";
@@ -346,7 +350,7 @@ app.post("/api/auth/logout", async (request, response, next) => {
 
 app.post("/api/spaces", async (request, response, next) => {
   try {
-    const account = sessionAccount(request);
+    const account = await sessionAccount(request);
     if (!account) return response.status(401).json({ error: "Sign in before creating a lover page." });
     const loverName = typeof request.body.loverName === "string" ? request.body.loverName.trim() : "";
     if (!loverName) return response.status(400).json({ error: "A lover name is required." });
@@ -365,32 +369,40 @@ app.post("/api/spaces", async (request, response, next) => {
   }
 });
 
-app.get("/api/spaces", (request, response) => {
-  const account = sessionAccount(request);
-  if (!account) return response.status(401).json({ error: "Sign in before viewing your pages." });
-  response.json({ spaces: listSpaces(account.account_id) });
+app.get("/api/spaces", async (request, response, next) => {
+  try {
+    const account = await sessionAccount(request);
+    if (!account) return response.status(401).json({ error: "Sign in before viewing your pages." });
+    response.json({ spaces: await listSpaces(account.account_id) });
+  } catch (error) {
+    next(error);
+  }
 });
 
-app.get("/api/spaces/:spaceId", (request, response) => {
-  const account = sessionAccount(request);
-  if (!account || !ownsSpace(request.params.spaceId, account.account_id)) {
-    return response.status(404).json({ error: "Page not found." });
+app.get("/api/spaces/:spaceId", async (request, response, next) => {
+  try {
+    const account = await sessionAccount(request);
+    if (!account || !(await ownsSpace(request.params.spaceId, account.account_id))) {
+      return response.status(404).json({ error: "Page not found." });
+    }
+    const spaces = await listSpaces(account.account_id);
+    const space = spaces.find((item) => item.id === request.params.spaceId);
+    if (!space) return response.status(404).json({ error: "Page not found." });
+    response.json({
+      spaceId: space.id,
+      loverName: space.lover_name,
+      ownerName: [account.first_name, account.last_name].filter(Boolean).join(" "),
+    });
+  } catch (error) {
+    next(error);
   }
-  const spaces = listSpaces(account.account_id);
-  const space = spaces.find((item) => item.id === request.params.spaceId);
-  if (!space) return response.status(404).json({ error: "Page not found." });
-  response.json({
-    spaceId: space.id,
-    loverName: space.lover_name,
-    ownerName: [account.first_name, account.last_name].filter(Boolean).join(" "),
-  });
 });
 
 app.delete("/api/spaces/:spaceId", async (request, response, next) => {
   try {
-    const account = sessionAccount(request);
+    const account = await sessionAccount(request);
     if (!account) return response.status(401).json({ error: "Sign in before managing your pages." });
-    if (!ownsSpace(request.params.spaceId, account.account_id)) {
+    if (!(await ownsSpace(request.params.spaceId, account.account_id))) {
       return response.status(404).json({ error: "Page not found." });
     }
     await deleteSpace(request.params.spaceId);
@@ -402,9 +414,9 @@ app.delete("/api/spaces/:spaceId", async (request, response, next) => {
 
 app.post("/api/spaces/:spaceId/invitations", async (request, response, next) => {
   try {
-    const account = sessionAccount(request);
+    const account = await sessionAccount(request);
     if (!account) return response.status(401).json({ error: "Sign in before managing invitations." });
-    if (!ownsSpace(request.params.spaceId, account.account_id)) {
+    if (!(await ownsSpace(request.params.spaceId, account.account_id))) {
       return response.status(404).json({ error: "Page not found." });
     }
     await revokeInvitations(request.params.spaceId);
@@ -427,9 +439,9 @@ app.post("/api/spaces/:spaceId/invitations", async (request, response, next) => 
 
 app.delete("/api/spaces/:spaceId/invitations", async (request, response, next) => {
   try {
-    const account = sessionAccount(request);
+    const account = await sessionAccount(request);
     if (!account) return response.status(401).json({ error: "Sign in before managing invitations." });
-    if (!ownsSpace(request.params.spaceId, account.account_id)) {
+    if (!(await ownsSpace(request.params.spaceId, account.account_id))) {
       return response.status(404).json({ error: "Page not found." });
     }
     await revokeInvitations(request.params.spaceId);
@@ -439,42 +451,50 @@ app.delete("/api/spaces/:spaceId/invitations", async (request, response, next) =
   }
 });
 
-app.get("/api/invitations/:token", (request, response) => {
-  const invitation = findInvitation(hashValue(request.params.token));
-  if (!invitation) return response.status(404).json({ error: "Invite is invalid or expired." });
-  response.json({
-    spaceId: invitation.space_id,
-    loverName: invitation.lover_name,
-    senderName: [invitation.owner_first_name, invitation.owner_last_name].filter(Boolean).join(" "),
-  });
+app.get("/api/invitations/:token", async (request, response, next) => {
+  try {
+    const invitation = await findInvitation(hashValue(request.params.token));
+    if (!invitation) return response.status(404).json({ error: "Invite is invalid or expired." });
+    response.json({
+      spaceId: invitation.space_id,
+      loverName: invitation.lover_name,
+      senderName: [invitation.owner_first_name, invitation.owner_last_name].filter(Boolean).join(" "),
+    });
+  } catch (error) {
+    next(error);
+  }
 });
 
 const webSocketServer = new WebSocketServer({ noServer: true });
 const connectedSpaces = new Map();
 
-httpServer.on("upgrade", (request, socket, head) => {
-  const url = new URL(request.url || "/", `http://${request.headers.host}`);
-  if (url.pathname !== "/ws") {
+httpServer.on("upgrade", async (request, socket, head) => {
+  try {
+    const url = new URL(request.url || "/", `http://${request.headers.host}`);
+    if (url.pathname !== "/ws") {
+      socket.destroy();
+      return;
+    }
+    const invitation = await findInvitation(hashValue(url.searchParams.get("invite") || ""));
+    const ownerAccount = await sessionAccount(request);
+    const ownerSpaceId = url.searchParams.get("spaceId") || "";
+    const isOwner = Boolean(ownerAccount && ownerSpaceId && (await ownsSpace(ownerSpaceId, ownerAccount.account_id)));
+    if (!invitation && !isOwner) {
+      socket.write("HTTP/1.1 401 Unauthorized\r\n\r\n");
+      socket.destroy();
+      return;
+    }
+    webSocketServer.handleUpgrade(request, socket, head, (client) => {
+      client.spaceId = invitation?.space_id || ownerSpaceId;
+      client.role = isOwner ? "owner" : "lover";
+      webSocketServer.emit("connection", client);
+    });
+  } catch (error) {
     socket.destroy();
-    return;
   }
-  const invitation = findInvitation(hashValue(url.searchParams.get("invite") || ""));
-  const ownerAccount = sessionAccount(request);
-  const ownerSpaceId = url.searchParams.get("spaceId") || "";
-  const isOwner = Boolean(ownerAccount && ownerSpaceId && ownsSpace(ownerSpaceId, ownerAccount.account_id));
-  if (!invitation && !isOwner) {
-    socket.write("HTTP/1.1 401 Unauthorized\r\n\r\n");
-    socket.destroy();
-    return;
-  }
-  webSocketServer.handleUpgrade(request, socket, head, (client) => {
-    client.spaceId = invitation?.space_id || ownerSpaceId;
-    client.role = isOwner ? "owner" : "lover";
-    webSocketServer.emit("connection", client);
-  });
 });
 
-webSocketServer.on("connection", (client) => {
+webSocketServer.on("connection", async (client) => {
   const peers = connectedSpaces.get(client.spaceId) || new Set();
   if (peers.size >= 2) {
     client.close(1008, "This private page already has two connected devices.");
@@ -486,8 +506,8 @@ webSocketServer.on("connection", (client) => {
   peers.add(client);
   connectedSpaces.set(client.spaceId, peers);
   client.send(JSON.stringify({ type: "connected", peers: peers.size }));
-  const history = listChatMessages(client.spaceId);
-  if (history.length) client.send(JSON.stringify({ type: "chat-history", messages: history }));
+  const history = await listChatMessages(client.spaceId);
+  if (history && history.length) client.send(JSON.stringify({ type: "chat-history", messages: history }));
   client.on("message", (raw) => {
     let event;
     try {

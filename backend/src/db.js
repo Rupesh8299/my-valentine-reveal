@@ -1,212 +1,243 @@
-import initSqlJs from "sql.js";
-import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { createClient } from "@supabase/supabase-js";
+import dotenv from "dotenv";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import ws from "ws";
 
 const backendDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
-const dataDir = process.env.DATA_DIR || path.join(backendDir, "data");
-const databaseFile = path.join(dataDir, "app.sqlite");
+dotenv.config({ path: path.join(backendDir, ".env"), override: true });
 
-const SQL = await initSqlJs({
-  locateFile: (file) => path.join(backendDir, "..", "node_modules", "sql.js", "dist", file),
+const supabaseUrl = process.env.SUPABASE_URL || "";
+const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY || "";
+
+if (!supabaseUrl || !supabaseKey) {
+  console.warn("SUPABASE_URL and SUPABASE_ANON_KEY / SUPABASE_SERVICE_ROLE_KEY must be defined in .env");
+}
+
+export const supabase = createClient(supabaseUrl, supabaseKey, {
+  auth: {
+    persistSession: false,
+    autoRefreshToken: false,
+  },
+  realtime: {
+    transport: ws,
+  },
 });
-await mkdir(dataDir, { recursive: true });
-
-let database;
-try {
-  database = new SQL.Database(await readFile(databaseFile));
-} catch (error) {
-  if (error.code !== "ENOENT") throw error;
-  database = new SQL.Database();
-}
-
-database.run(`
-  PRAGMA foreign_keys = ON;
-  CREATE TABLE IF NOT EXISTS accounts (
-    id TEXT PRIMARY KEY,
-    email TEXT NOT NULL UNIQUE COLLATE NOCASE,
-    first_name TEXT NOT NULL DEFAULT 'Valentine',
-    last_name TEXT NOT NULL DEFAULT '',
-    password_hash TEXT NOT NULL,
-    created_at TEXT NOT NULL
-  );
-  CREATE TABLE IF NOT EXISTS sessions (
-    token_hash TEXT PRIMARY KEY,
-    account_id TEXT NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
-    expires_at TEXT NOT NULL,
-    created_at TEXT NOT NULL
-  );
-  CREATE TABLE IF NOT EXISTS couple_spaces (
-    id TEXT PRIMARY KEY,
-    owner_account_id TEXT NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
-    lover_name TEXT NOT NULL,
-    created_at TEXT NOT NULL
-  );
-  CREATE TABLE IF NOT EXISTS invitations (
-    token_hash TEXT PRIMARY KEY,
-    space_id TEXT NOT NULL REFERENCES couple_spaces(id) ON DELETE CASCADE,
-    expires_at TEXT NOT NULL,
-    revoked_at TEXT,
-    created_at TEXT NOT NULL
-  );
-  CREATE TABLE IF NOT EXISTS chat_messages (
-    id TEXT PRIMARY KEY,
-    space_id TEXT NOT NULL REFERENCES couple_spaces(id) ON DELETE CASCADE,
-    payload TEXT NOT NULL,
-    sender_role TEXT NOT NULL,
-    created_at TEXT NOT NULL
-  );
-`);
-
-const accountColumns = database.exec("PRAGMA table_info(accounts)")[0]?.values || [];
-const hasColumn = (name) => accountColumns.some((column) => column[1] === name);
-if (!hasColumn("first_name")) database.run("ALTER TABLE accounts ADD COLUMN first_name TEXT NOT NULL DEFAULT 'Valentine'");
-if (!hasColumn("last_name")) database.run("ALTER TABLE accounts ADD COLUMN last_name TEXT NOT NULL DEFAULT ''");
-
-async function persist() {
-  await writeFile(databaseFile, Buffer.from(database.export()));
-}
-
-function one(sql, params = []) {
-  const statement = database.prepare(sql);
-  statement.bind(params);
-  const row = statement.step() ? statement.getAsObject() : null;
-  statement.free();
-  return row;
-}
 
 export async function createAccount({ id, email, firstName, lastName, passwordHash, createdAt }) {
-  database.run(
-    "INSERT INTO accounts (id, email, first_name, last_name, password_hash, created_at) VALUES (?, ?, ?, ?, ?, ?)",
-    [id, email, firstName, lastName, passwordHash, createdAt],
-  );
-  await persist();
+  const { error } = await supabase.from("accounts").insert({
+    id,
+    email: email.toLowerCase(),
+    first_name: firstName,
+    last_name: lastName,
+    password_hash: passwordHash,
+    created_at: createdAt,
+  });
+  if (error) throw error;
 }
 
-export function findAccountByEmail(email) {
-  return one("SELECT * FROM accounts WHERE email = ?", [email]);
+export async function findAccountByEmail(email) {
+  if (!email) return null;
+  const { data, error } = await supabase
+    .from("accounts")
+    .select("*")
+    .ilike("email", email.trim().toLowerCase())
+    .maybeSingle();
+  if (error) throw error;
+  return data || null;
 }
 
-export function findAccountById(id) {
-  return one("SELECT * FROM accounts WHERE id = ?", [id]);
+export async function findAccountById(id) {
+  if (!id) return null;
+  const { data, error } = await supabase
+    .from("accounts")
+    .select("*")
+    .eq("id", id)
+    .maybeSingle();
+  if (error) throw error;
+  return data || null;
 }
 
 export async function updateAccountName({ id, firstName, lastName }) {
-  database.run(
-    "UPDATE accounts SET first_name = ?, last_name = ? WHERE id = ?",
-    [firstName, lastName, id],
-  );
-  await persist();
+  const { error } = await supabase
+    .from("accounts")
+    .update({ first_name: firstName, last_name: lastName })
+    .eq("id", id);
+  if (error) throw error;
 }
 
 export async function createSession({ tokenHash, accountId, expiresAt, createdAt }) {
-  database.run(
-    "INSERT INTO sessions (token_hash, account_id, expires_at, created_at) VALUES (?, ?, ?, ?)",
-    [tokenHash, accountId, expiresAt, createdAt],
-  );
-  await persist();
+  const { error } = await supabase.from("sessions").insert({
+    token_hash: tokenHash,
+    account_id: accountId,
+    expires_at: expiresAt,
+    created_at: createdAt,
+  });
+  if (error) throw error;
 }
 
 export async function deleteSession(tokenHash) {
-  database.run("DELETE FROM sessions WHERE token_hash = ?", [tokenHash]);
-  await persist();
+  const { error } = await supabase.from("sessions").delete().eq("token_hash", tokenHash);
+  if (error) throw error;
 }
 
-export function findSession(tokenHash) {
-  return one(
-    "SELECT sessions.*, accounts.email, accounts.first_name, accounts.last_name FROM sessions JOIN accounts ON accounts.id = sessions.account_id WHERE token_hash = ? AND expires_at > ?",
-    [tokenHash, new Date().toISOString()],
-  );
+export async function findSession(tokenHash) {
+  if (!tokenHash) return null;
+  const { data, error } = await supabase
+    .from("sessions")
+    .select("token_hash, account_id, expires_at, created_at, accounts(email, first_name, last_name)")
+    .eq("token_hash", tokenHash)
+    .gt("expires_at", new Date().toISOString())
+    .maybeSingle();
+
+  if (error) throw error;
+  if (!data) return null;
+
+  return {
+    token_hash: data.token_hash,
+    account_id: data.account_id,
+    expires_at: data.expires_at,
+    created_at: data.created_at,
+    email: data.accounts?.email,
+    first_name: data.accounts?.first_name,
+    last_name: data.accounts?.last_name,
+  };
 }
 
 export async function createSpace({ id, ownerAccountId, loverName, createdAt }) {
-  database.run(
-    "INSERT INTO couple_spaces (id, owner_account_id, lover_name, created_at) VALUES (?, ?, ?, ?)",
-    [id, ownerAccountId, loverName, createdAt],
-  );
-  await persist();
+  const { error } = await supabase.from("couple_spaces").insert({
+    id,
+    owner_account_id: ownerAccountId,
+    lover_name: loverName,
+    created_at: createdAt,
+  });
+  if (error) throw error;
 }
 
 export async function deleteSpace(spaceId) {
-  database.run("DELETE FROM couple_spaces WHERE id = ?", [spaceId]);
-  await persist();
+  const { error } = await supabase.from("couple_spaces").delete().eq("id", spaceId);
+  if (error) throw error;
 }
 
 export async function saveChatMessage({ id, spaceId, payload, senderRole, createdAt }) {
-  database.run(
-    "INSERT OR REPLACE INTO chat_messages (id, space_id, payload, sender_role, created_at) VALUES (?, ?, ?, ?, ?)",
-    [id, spaceId, JSON.stringify(payload), senderRole, createdAt],
-  );
-  await persist();
+  const { error } = await supabase.from("chat_messages").upsert({
+    id,
+    space_id: spaceId,
+    payload,
+    sender_role: senderRole,
+    created_at: createdAt,
+  });
+  if (error) throw error;
 }
 
-export function listChatMessages(spaceId) {
-  const statement = database.prepare(
-    "SELECT id, payload, sender_role FROM chat_messages WHERE space_id = ? ORDER BY created_at ASC LIMIT 200",
-  );
-  statement.bind([spaceId]);
-  const rows = [];
-  while (statement.step()) {
-    const row = statement.getAsObject();
-    try {
-      rows.push({ ...(JSON.parse(row.payload)), senderRole: row.sender_role });
-    } catch {
-      // Ignore malformed legacy rows rather than breaking the full history.
-    }
-  }
-  statement.free();
-  return rows;
+export async function listChatMessages(spaceId) {
+  const { data, error } = await supabase
+    .from("chat_messages")
+    .select("id, payload, sender_role")
+    .eq("space_id", spaceId)
+    .order("created_at", { ascending: true })
+    .limit(200);
+
+  if (error) throw error;
+  if (!data) return [];
+  return data.map((row) => ({
+    ...(typeof row.payload === "string" ? JSON.parse(row.payload) : row.payload),
+    senderRole: row.sender_role,
+  }));
 }
 
 export async function createInvitation({ tokenHash, spaceId, expiresAt, createdAt }) {
-  database.run(
-    "INSERT INTO invitations (token_hash, space_id, expires_at, created_at) VALUES (?, ?, ?, ?)",
-    [tokenHash, spaceId, expiresAt, createdAt],
-  );
-  await persist();
+  const { error } = await supabase.from("invitations").insert({
+    token_hash: tokenHash,
+    space_id: spaceId,
+    expires_at: expiresAt,
+    created_at: createdAt,
+  });
+  if (error) throw error;
 }
 
-export function listSpaces(ownerAccountId) {
-  const statement = database.prepare(`
-    SELECT couple_spaces.id, couple_spaces.lover_name, couple_spaces.created_at,
-      invitations.expires_at, invitations.revoked_at
-    FROM couple_spaces
-    LEFT JOIN invitations ON invitations.space_id = couple_spaces.id
-      AND invitations.revoked_at IS NULL
-      AND invitations.expires_at > ?
-    WHERE couple_spaces.owner_account_id = ?
-    ORDER BY couple_spaces.created_at DESC
-  `);
-  statement.bind([new Date().toISOString(), ownerAccountId]);
-  const rows = [];
-  while (statement.step()) rows.push(statement.getAsObject());
-  statement.free();
-  return rows;
+export async function listSpaces(ownerAccountId) {
+  const now = new Date().toISOString();
+  const { data: spaces, error } = await supabase
+    .from("couple_spaces")
+    .select("id, lover_name, created_at, invitations(expires_at, revoked_at)")
+    .eq("owner_account_id", ownerAccountId)
+    .order("created_at", { ascending: false });
+
+  if (error) throw error;
+  if (!spaces) return [];
+
+  return spaces.map((space) => {
+    const activeInvite = Array.isArray(space.invitations)
+      ? space.invitations.find((inv) => !inv.revoked_at && inv.expires_at > now)
+      : null;
+    return {
+      id: space.id,
+      lover_name: space.lover_name,
+      created_at: space.created_at,
+      expires_at: activeInvite ? activeInvite.expires_at : null,
+      revoked_at: activeInvite ? activeInvite.revoked_at : null,
+    };
+  });
 }
 
 export async function revokeInvitations(spaceId) {
-  database.run(
-    "UPDATE invitations SET revoked_at = ? WHERE space_id = ? AND revoked_at IS NULL",
-    [new Date().toISOString(), spaceId],
-  );
-  await persist();
+  const { error } = await supabase
+    .from("invitations")
+    .update({ revoked_at: new Date().toISOString() })
+    .eq("space_id", spaceId)
+    .is("revoked_at", null);
+  if (error) throw error;
 }
 
-export function ownsSpace(spaceId, ownerAccountId) {
-  return Boolean(one(
-    "SELECT id FROM couple_spaces WHERE id = ? AND owner_account_id = ?",
-    [spaceId, ownerAccountId],
-  ));
+export async function ownsSpace(spaceId, ownerAccountId) {
+  if (!spaceId || !ownerAccountId) return false;
+  const { data, error } = await supabase
+    .from("couple_spaces")
+    .select("id")
+    .eq("id", spaceId)
+    .eq("owner_account_id", ownerAccountId)
+    .maybeSingle();
+
+  if (error) throw error;
+  return Boolean(data);
 }
 
-export function findInvitation(tokenHash) {
-  return one(
-    `SELECT invitations.*, couple_spaces.lover_name,
-      accounts.first_name AS owner_first_name, accounts.last_name AS owner_last_name
-      FROM invitations
-      JOIN couple_spaces ON couple_spaces.id = invitations.space_id
-      JOIN accounts ON accounts.id = couple_spaces.owner_account_id
-      WHERE token_hash = ? AND revoked_at IS NULL AND expires_at > ?`,
-    [tokenHash, new Date().toISOString()],
-  );
+export async function findInvitation(tokenHash) {
+  if (!tokenHash) return null;
+  const now = new Date().toISOString();
+  const { data, error } = await supabase
+    .from("invitations")
+    .select(`
+      token_hash,
+      space_id,
+      expires_at,
+      revoked_at,
+      created_at,
+      couple_spaces (
+        lover_name,
+        accounts (
+          first_name,
+          last_name
+        )
+      )
+    `)
+    .eq("token_hash", tokenHash)
+    .is("revoked_at", null)
+    .gt("expires_at", now)
+    .maybeSingle();
+
+  if (error) throw error;
+  if (!data) return null;
+
+  return {
+    token_hash: data.token_hash,
+    space_id: data.space_id,
+    expires_at: data.expires_at,
+    revoked_at: data.revoked_at,
+    created_at: data.created_at,
+    lover_name: data.couple_spaces?.lover_name,
+    owner_first_name: data.couple_spaces?.accounts?.first_name,
+    owner_last_name: data.couple_spaces?.accounts?.last_name,
+  };
 }
