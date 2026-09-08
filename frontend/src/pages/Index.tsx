@@ -3,7 +3,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import confetti from "canvas-confetti";
 import { toast } from "sonner";
 import { useLocation } from "react-router-dom";
-
+import * as tus from "tus-js-client";
 import {
   WEEK_DATA,
   CONFIG,
@@ -183,8 +183,8 @@ const Index = ({ ownerSpaceId, ownerName, partnerNameOverride, connectionPartner
     return true;
   };
   const queueMedia = async (file: File) => {
-    if (file.size > 2 * 1024 * 1024) {
-      toast.error("Media must be 2 MB or smaller for reliable phone sharing.");
+    if (file.size > 50 * 1024 * 1024) {
+      toast.error("Media must be 50 MB or smaller.");
       return false;
     }
     const kind = file.type.startsWith("video/") ? "video" : file.type.startsWith("image/") ? "image" : null;
@@ -192,13 +192,61 @@ const Index = ({ ownerSpaceId, ownerName, partnerNameOverride, connectionPartner
       toast.error("Only images and videos can be shared.");
       return false;
     }
-    const url = await new Promise<string>((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onload = () => resolve(String(reader.result));
-      reader.onerror = () => reject(new Error("Unable to read media."));
-      reader.readAsDataURL(file);
+
+    const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+    const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+    if (!supabaseUrl || !supabaseAnonKey) {
+      toast.error("Storage is not configured.");
+      return false;
+    }
+
+    const fileName = `${Date.now()}-${file.name.replace(/[^a-zA-Z0-9.-]/g, "_")}`;
+    const bucketName = "chat-media";
+    const messageId = createMessageId();
+    
+    // We send an optimistic message immediately with a temporary local URL
+    // so the sender can see their video/image locally right away.
+    const localUrl = URL.createObjectURL(file);
+    queueChatMessage({ type: "chat", id: messageId, text: "Uploading...", sentAt: new Date().toISOString(), media: { kind, url: localUrl, name: file.name } });
+
+    const toastId = toast.loading(`Uploading ${file.name}... (0%)`);
+
+    return new Promise<boolean>((resolve) => {
+      const upload = new tus.Upload(file, {
+        endpoint: `${supabaseUrl}/storage/v1/upload/resumable`,
+        retryDelays: [0, 3000, 5000, 10000, 20000],
+        headers: {
+          authorization: `Bearer ${supabaseAnonKey}`,
+          'x-upsert': 'true',
+        },
+        uploadDataDuringCreation: true,
+        removeFingerprintOnSuccess: true,
+        metadata: {
+          bucketName: bucketName,
+          objectName: fileName,
+          contentType: file.type,
+          cacheControl: '3600',
+        },
+        chunkSize: 6 * 1024 * 1024, // 6 MB chunks
+        onError: (error) => {
+          toast.error(`Upload failed: ${error.message}`, { id: toastId });
+          resolve(false);
+        },
+        onProgress: (bytesUploaded, bytesTotal) => {
+          const percentage = ((bytesUploaded / bytesTotal) * 100).toFixed(0);
+          toast.loading(`Uploading ${file.name}... (${percentage}%)`, { id: toastId });
+        },
+        onSuccess: () => {
+          toast.success("Upload complete!", { id: toastId });
+          const publicUrl = `${supabaseUrl}/storage/v1/object/public/${bucketName}/${fileName}`;
+          
+          // Re-send the actual message with the public URL to sync with everyone
+          queueChatMessage({ type: "chat", id: messageId, text: "", sentAt: new Date().toISOString(), media: { kind, url: publicUrl, name: file.name } });
+          resolve(true);
+        }
+      });
+      upload.start();
     });
-    return queueChatMessage({ type: "chat", id: createMessageId(), text: "", sentAt: new Date().toISOString(), media: { kind, url, name: file.name } });
   };
   const sendGesture = (event: React.PointerEvent<HTMLDivElement>) => {
     if (!peerConnected) return;
