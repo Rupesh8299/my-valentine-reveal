@@ -30,7 +30,7 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const backendDir = path.resolve(__dirname, "..");
 const assetsDir = path.join(backendDir, "assets");
 const frontendDist = path.resolve(backendDir, "..", "frontend", "dist");
-dotenv.config({ path: path.join(backendDir, ".env") });
+dotenv.config({ path: path.join(backendDir, ".env"), override: true });
 const app = express();
 const httpServer = createServer(app);
 const port = Number(process.env.PORT || 3001);
@@ -214,6 +214,54 @@ app.post("/api/auth/register", async (request, response, next) => {
   }
 });
 
+app.post("/api/auth/supabase-session", async (request, response, next) => {
+  try {
+    const accessToken = typeof request.body.accessToken === "string" ? request.body.accessToken : "";
+    if (!supabaseUrl || !supabaseAnonKey || !accessToken) {
+      return response.status(503).json({ error: "Supabase authentication is not configured." });
+    }
+    const userResponse = await fetch(`${supabaseUrl}/auth/v1/user`, {
+      headers: {
+        apikey: supabaseAnonKey,
+        Authorization: `Bearer ${accessToken}`,
+      },
+    });
+    const user = await userResponse.json();
+    if (!userResponse.ok || !user.email) return response.status(401).json({ error: "Supabase session is invalid." });
+    let account = findAccountByEmail(user.email);
+    if (!account) {
+      const firstName = String(user.user_metadata?.first_name || user.user_metadata?.full_name || "Valentine").trim().slice(0, 80) || "Valentine";
+      const lastName = String(user.user_metadata?.last_name || "").trim().slice(0, 80);
+      const salt = crypto.randomBytes(16).toString("hex");
+      const passwordHash = `${salt}:${crypto.randomBytes(64).toString("hex")}`;
+      await createAccount({
+        id: crypto.randomUUID(),
+        email: user.email.trim().toLowerCase(),
+        firstName,
+        lastName,
+        passwordHash,
+        createdAt: now(),
+      });
+      account = findAccountByEmail(user.email);
+    }
+    if (!sessionSecret) return response.status(503).json({ error: "Authentication is not configured." });
+    const token = crypto.randomBytes(32).toString("base64url");
+    await createSession({
+      tokenHash: hashValue(`${sessionSecret}:${token}`),
+      accountId: account.id,
+      expiresAt: new Date(Date.now() + 1000 * 60 * 60 * 24 * 30).toISOString(),
+      createdAt: now(),
+    });
+    response.setHeader(
+      "Set-Cookie",
+      `${sessionCookie}=${token}; HttpOnly; SameSite=Lax; Path=/; Max-Age=2592000${isProduction ? "; Secure" : ""}`,
+    );
+    response.json({ id: account.id, email: account.email, firstName: account.first_name, lastName: account.last_name });
+  } catch (error) {
+    next(error);
+  }
+});
+
 app.post("/api/auth/login", async (request, response, next) => {
   try {
     const email = typeof request.body.email === "string" ? request.body.email.trim().toLowerCase() : "";
@@ -225,54 +273,6 @@ app.post("/api/auth/login", async (request, response, next) => {
       crypto.scrypt(password, salt, 64, (error, derivedKey) => {
         if (error) reject(error);
         else resolve(derivedKey.toString("hex"));
-      });
-
-      app.post("/api/auth/supabase-session", async (request, response, next) => {
-        try {
-          const accessToken = typeof request.body.accessToken === "string" ? request.body.accessToken : "";
-          if (!supabaseUrl || !supabaseAnonKey || !accessToken) {
-            return response.status(503).json({ error: "Supabase authentication is not configured." });
-          }
-          const userResponse = await fetch(`${supabaseUrl}/auth/v1/user`, {
-            headers: {
-              apikey: supabaseAnonKey,
-              Authorization: `Bearer ${accessToken}`,
-            },
-          });
-          const user = await userResponse.json();
-          if (!userResponse.ok || !user.email) return response.status(401).json({ error: "Supabase session is invalid." });
-          let account = findAccountByEmail(user.email);
-          if (!account) {
-            const firstName = String(user.user_metadata?.first_name || user.user_metadata?.full_name || "Valentine").trim().slice(0, 80) || "Valentine";
-            const lastName = String(user.user_metadata?.last_name || "").trim().slice(0, 80);
-            const salt = crypto.randomBytes(16).toString("hex");
-            const passwordHash = `${salt}:${crypto.randomBytes(64).toString("hex")}`;
-            await createAccount({
-              id: crypto.randomUUID(),
-              email: user.email.trim().toLowerCase(),
-              firstName,
-              lastName,
-              passwordHash,
-              createdAt: now(),
-            });
-            account = findAccountByEmail(user.email);
-          }
-          if (!sessionSecret) return response.status(503).json({ error: "Authentication is not configured." });
-          const token = crypto.randomBytes(32).toString("base64url");
-          await createSession({
-            tokenHash: hashValue(`${sessionSecret}:${token}`),
-            accountId: account.id,
-            expiresAt: new Date(Date.now() + 1000 * 60 * 60 * 24 * 30).toISOString(),
-            createdAt: now(),
-          });
-          response.setHeader(
-            "Set-Cookie",
-            `${sessionCookie}=${token}; HttpOnly; SameSite=Lax; Path=/; Max-Age=2592000${isProduction ? "; Secure" : ""}`,
-          );
-          response.json({ id: account.id, email: account.email, firstName: account.first_name, lastName: account.last_name });
-        } catch (error) {
-          next(error);
-        }
       });
     });
     if (actual.length !== expected.length || !crypto.timingSafeEqual(Buffer.from(actual), Buffer.from(expected))) {

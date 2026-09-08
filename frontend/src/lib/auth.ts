@@ -84,8 +84,13 @@ export const updateProfile = (firstName: string, lastName: string) =>
     body: JSON.stringify({ firstName, lastName }),
   });
 
-export const logout = () =>
-  request<void>("/auth/logout", { method: "POST" });
+export const logout = async () => {
+  await request<void>("/auth/logout", { method: "POST" });
+  if (supabase) {
+    const { error } = await supabase.auth.signOut();
+    if (error) throw error;
+  }
+};
 
 export type CreatedSpace = {
   spaceId: string;
