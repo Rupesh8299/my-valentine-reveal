@@ -4,7 +4,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 const backendDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
-const dataDir = path.join(backendDir, "data");
+const dataDir = process.env.DATA_DIR || path.join(backendDir, "data");
 const databaseFile = path.join(dataDir, "app.sqlite");
 
 const SQL = await initSqlJs({
