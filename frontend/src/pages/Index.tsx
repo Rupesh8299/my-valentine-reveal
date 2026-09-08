@@ -217,6 +217,7 @@ const Index = ({ ownerSpaceId, ownerName, partnerNameOverride, connectionPartner
         retryDelays: [0, 3000, 5000, 10000, 20000],
         headers: {
           authorization: `Bearer ${supabaseAnonKey}`,
+          apikey: supabaseAnonKey,
           'x-upsert': 'true',
         },
         uploadDataDuringCreation: true,
