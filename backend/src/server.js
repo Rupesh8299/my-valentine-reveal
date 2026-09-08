@@ -59,7 +59,7 @@ const allowedOrigins = (process.env.FRONTEND_ORIGIN || "http://localhost:8080")
 app.use(cors({
   credentials: true,
   origin: (origin, callback) => {
-    if (!origin || allowedOrigins.includes(origin)) {
+    if (!origin || allowedOrigins.includes(origin) || allowedOrigins.includes("*")) {
       callback(null, true);
       return;
     }
@@ -255,7 +255,7 @@ app.post("/api/auth/supabase-session", async (request, response, next) => {
     });
     response.setHeader(
       "Set-Cookie",
-      `${sessionCookie}=${token}; HttpOnly; SameSite=Lax; Path=/; Max-Age=2592000${isProduction ? "; Secure" : ""}`,
+      `${sessionCookie}=${token}; HttpOnly; SameSite=None; Secure; Path=/; Max-Age=2592000`,
     );
     response.json({ id: account.id, email: account.email, firstName: account.first_name, lastName: account.last_name });
   } catch (error) {
@@ -289,7 +289,7 @@ app.post("/api/auth/login", async (request, response, next) => {
     });
     response.setHeader(
       "Set-Cookie",
-      `${sessionCookie}=${token}; HttpOnly; SameSite=Lax; Path=/; Max-Age=2592000${isProduction ? "; Secure" : ""}`,
+      `${sessionCookie}=${token}; HttpOnly; SameSite=None; Secure; Path=/; Max-Age=2592000`,
     );
     response.json({ id: account.id, email: account.email, firstName: account.first_name, lastName: account.last_name });
   } catch (error) {
@@ -341,7 +341,7 @@ app.post("/api/auth/logout", async (request, response, next) => {
     }
     response.setHeader(
       "Set-Cookie",
-      `${sessionCookie}=; HttpOnly; SameSite=Lax; Path=/; Max-Age=0${isProduction ? "; Secure" : ""}`,
+      `${sessionCookie}=; HttpOnly; SameSite=None; Secure; Path=/; Max-Age=0`,
     );
     response.status(204).end();
   } catch (error) {

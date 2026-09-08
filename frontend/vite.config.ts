@@ -12,13 +12,15 @@ export default defineConfig(({ mode }) => ({
     },
     proxy: {
       "/api": {
-        target: "http://localhost:3001",
+        target: "https://my-valentine-reveal-backend.onrender.com",
         changeOrigin: true,
+        secure: false,
       },
       "/ws": {
-        target: "ws://localhost:3001",
+        target: "wss://my-valentine-reveal-backend.onrender.com",
         ws: true,
         changeOrigin: true,
+        secure: false,
       },
     },
   },
