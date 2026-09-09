@@ -87,8 +87,9 @@ export const updateProfile = (firstName: string, lastName: string) =>
 export const logout = async () => {
   await request<void>("/auth/logout", { method: "POST" });
   if (supabase) {
-    const { error } = await supabase.auth.signOut();
-    if (error) throw error;
+    await supabase.auth.signOut().catch(() => {
+      // Ignore errors if the user doesn't have a valid Supabase session
+    });
   }
 };
 

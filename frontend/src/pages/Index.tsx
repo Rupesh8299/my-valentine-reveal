@@ -1,4 +1,4 @@
-import { lazy, Suspense, useState, useEffect, useRef, useMemo } from "react";
+import { lazy, Suspense, useState, useEffect, useRef, useMemo, useCallback } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import confetti from "canvas-confetti";
 import { toast } from "sonner";
@@ -13,13 +13,15 @@ import {
 import FlipCard from "@/components/valentine/FlipCard";
 import NavigationDock from "@/components/valentine/NavigationDock";
 import IntroOverlay from "@/components/valentine/IntroOverlay";
-import TransitionModal from "@/components/valentine/TransitionModal";
 import AudioControls from "@/components/valentine/AudioControls";
 import HeartStarField from "@/components/valentine/HeartStarField";
 import { useDebounce } from "@/hooks/useDebounce";
 import { assetUrl, dayMusicUrl } from "@/lib/api";
 import { useRealtimeConnection } from "@/hooks/useRealtimeConnection";
 import RealtimeChat, { RealtimeMessage } from "@/components/valentine/RealtimeChat";
+import AnimatedContent from "@/components/ui/AnimatedContent";
+import BorderGlow from "@/components/ui/BorderGlow";
+import MessageScroller from "@/components/ui/MessageScroller";
 
 const LiquidEther = lazy(() => import("@/components/valentine/LiquidEther"));
 
@@ -41,10 +43,9 @@ const Index = ({ ownerSpaceId, ownerName, partnerNameOverride, connectionPartner
   const [isMuted, setIsMuted] = useState(true);
   const [dynamicAudio, setDynamicAudio] = useState<string | null>(null);
   const [dynamicAudioResolved, setDynamicAudioResolved] = useState(false);
-  const [showTransition, setShowTransition] = useState(false);
-  const [transitionMessage, setTransitionMessage] = useState("");
   const [partnerName, setPartnerName] = useState(partnerNameOverride || CONFIG.partnerName);
   const [showHeartbeat, setShowHeartbeat] = useState(false);
+  const [notificationMsg, setNotificationMsg] = useState<{ id: string; text: string } | null>(null);
   const [chatOpen, setChatOpen] = useState(false);
   const [chatExpanded, setChatExpanded] = useState(false);
   const [mediaPreviewOpen, setMediaPreviewOpen] = useState(false);
@@ -85,24 +86,70 @@ const Index = ({ ownerSpaceId, ownerName, partnerNameOverride, connectionPartner
     ? (connectionPartnerName || partnerName)
     : (connectionPartnerName || routeState?.connectionPartnerName || "Sender");
   const realtimeToken = isOwnerPage ? undefined : routeState?.inviteToken;
-  const { status: connectionStatus, peerConnected, sendData } = useRealtimeConnection(
+  const lastActiveKey = isOwnerPage ? "valentine-last-active" : `valentine-last-active-${routeState?.inviteToken}`;
+  const [peerLastActive, setPeerLastActive] = useState<number | null>(() => {
+    const saved = localStorage.getItem(lastActiveKey);
+    return saved ? parseInt(saved, 10) : null;
+  });
+  
+  const [callStatus, setCallStatus] = useState<"idle" | "incoming" | "ringing" | "connected">("idle");
+  const callTimeoutRef = useRef<number | null>(null);
+
+  const { status: connectionStatus, peerConnected, sendData, startAudio, stopAudio, remoteAudioStream, localAudioStream } = useRealtimeConnection(
     realtimeToken,
     (data) => {
       if (!data || typeof data !== "object") return;
+      const type = (data as { type?: string }).type;
+      
+      if (type === "call-request") {
+        setCallStatus("incoming");
+        if (callTimeoutRef.current) window.clearTimeout(callTimeoutRef.current);
+        callTimeoutRef.current = window.setTimeout(() => setCallStatus("idle"), 30000);
+        return;
+      }
+      if (type === "call-accept") {
+        if (callTimeoutRef.current) window.clearTimeout(callTimeoutRef.current);
+        setCallStatus("connected");
+        return;
+      }
+      if (type === "call-decline" || type === "call-end") {
+        if (callTimeoutRef.current) window.clearTimeout(callTimeoutRef.current);
+        setCallStatus("idle");
+        stopAudio();
+        return;
+      }
       if (
         (data as { type?: string }).type === "chat-history"
         || (data as { type?: string }).type === "chat-history-sync"
       ) {
         const history = (data as { messages?: Array<RealtimeMessage & { senderRole?: string }> }).messages || [];
         setChatMessages((current) => {
+          let added = false;
           const merged = [...current];
           history.forEach((message) => {
-            if (!message.id || merged.some((item) => item.id === message.id)) return;
-            merged.push({
+            if (!message.id) return;
+            const existingIndex = merged.findIndex((item) => item.id === message.id);
+            const mappedMessage = {
               ...message,
-              sender: message.senderRole === (isOwnerPage ? "owner" : "lover") ? "me" : "them",
-            });
+              sender: message.senderRole === (isOwnerPage ? "owner" : "lover") ? "me" as const : "them" as const,
+            };
+            if (existingIndex !== -1) {
+              if (mappedMessage.isEdited || mappedMessage.isDeleted) {
+                merged[existingIndex] = { 
+                  ...merged[existingIndex], 
+                  text: mappedMessage.text, 
+                  isEdited: mappedMessage.isEdited || merged[existingIndex].isEdited, 
+                  isDeleted: mappedMessage.isDeleted || merged[existingIndex].isDeleted,
+                  media: mappedMessage.isDeleted ? undefined : mappedMessage.media || merged[existingIndex].media
+                };
+                added = true;
+              }
+            } else {
+              merged.push(mappedMessage);
+              added = true;
+            }
           });
+          if (!added) return current;
           const next = merged.slice(-200);
           saveChat(chatStorageKey, next);
           return next;
@@ -122,6 +169,24 @@ const Index = ({ ownerSpaceId, ownerName, partnerNameOverride, connectionPartner
         window.setTimeout(() => setRemoteGestures((current) => current.filter((item) => item.id !== gesture.id)), 1400);
         return;
       }
+      if ((data as { type?: string }).type === "chat-edit") {
+        const editData = data as { id: string; text: string };
+        setChatMessages((current) => {
+          const next = current.map(m => m.id === editData.id ? { ...m, text: editData.text, isEdited: true } : m);
+          saveChat(chatStorageKey, next.slice(-200));
+          return next;
+        });
+        return;
+      }
+      if ((data as { type?: string }).type === "chat-delete") {
+        const delData = data as { id: string };
+        setChatMessages((current) => {
+          const next = current.map(m => m.id === delData.id ? { ...m, text: "This message was deleted", isDeleted: true, media: undefined } : m);
+          saveChat(chatStorageKey, next.slice(-200));
+          return next;
+        });
+        return;
+      }
       if ((data as { type?: string }).type !== "chat") return;
       const incomingData = data as Omit<RealtimeMessage, "sender"> & { senderRole?: string };
       const incoming = { ...incomingData, sender: incomingData.senderRole === (isOwnerPage ? "owner" : "lover") ? "me" as const : "them" as const };
@@ -130,10 +195,19 @@ const Index = ({ ownerSpaceId, ownerName, partnerNameOverride, connectionPartner
         saveChat(chatStorageKey, next.slice(-200));
         return next;
       });
-      if (!chatOpen) setUnreadMessages((count) => count + 1);
+      if (!chatOpen) {
+        setUnreadMessages((count) => count + 1);
+        const text = incoming.text || (incoming.media ? `Sent a ${incoming.media.kind}` : "New message");
+        setNotificationMsg({ id: incoming.id, text });
+      }
     },
     ownerSpaceId,
   );
+
+  const handleNotificationDisappear = useCallback(() => {
+    setNotificationMsg(null);
+  }, []);
+
   useEffect(() => {
     try {
       const legacyKey = routeState?.inviteToken ? `valentine-chat-${routeState.inviteToken}` : "";
@@ -158,8 +232,28 @@ const Index = ({ ownerSpaceId, ownerName, partnerNameOverride, connectionPartner
     if (remaining.length) saveChat(pendingStorageKey, remaining);
     else localStorage.removeItem(pendingStorageKey);
   }, [pendingStorageKey, peerConnected, sendData]);
+  const hasSyncedHistoryRef = useRef(false);
+  const prevPeerConnectedRef = useRef(peerConnected);
+
   useEffect(() => {
-    if (!peerConnected || !chatMessages.length) return;
+    const transitionedToOffline = prevPeerConnectedRef.current && !peerConnected;
+    prevPeerConnectedRef.current = peerConnected;
+
+    if (!peerConnected) {
+      hasSyncedHistoryRef.current = false;
+      if (transitionedToOffline) {
+        const now = Date.now();
+        setPeerLastActive(now);
+        localStorage.setItem(lastActiveKey, now.toString());
+      }
+      return;
+    }
+    
+    setPeerLastActive(null);
+    localStorage.removeItem(lastActiveKey);
+
+    if (hasSyncedHistoryRef.current || !chatMessages.length) return;
+    
     const localRole = isOwnerPage ? "owner" : "lover";
     sendData({
       type: "chat-history-sync",
@@ -168,7 +262,19 @@ const Index = ({ ownerSpaceId, ownerName, partnerNameOverride, connectionPartner
         senderRole: sender === "me" ? localRole : localRole === "owner" ? "lover" : "owner",
       })),
     });
-  }, [chatMessages, isOwnerPage, peerConnected, sendData]);
+    hasSyncedHistoryRef.current = true;
+  }, [chatMessages, isOwnerPage, peerConnected, sendData, lastActiveKey]);
+
+  useEffect(() => {
+    if (!peerConnected && callStatus !== "idle") {
+      const timeout = window.setTimeout(() => {
+        setCallStatus("idle");
+        stopAudio();
+      }, 30000);
+      return () => window.clearTimeout(timeout);
+    }
+  }, [peerConnected, callStatus, stopAudio]);
+
   const queueChatMessage = (message: Omit<RealtimeMessage, "sender">) => {
     const localMessage: RealtimeMessage = { ...message, sender: "me" };
     setChatMessages((current) => {
@@ -182,14 +288,87 @@ const Index = ({ ownerSpaceId, ownerName, partnerNameOverride, connectionPartner
     }
     return true;
   };
+  const editChatMessage = (id: string, newText: string) => {
+    setChatMessages((current) => {
+      const next = current.map(m => m.id === id ? { ...m, text: newText, isEdited: true } : m);
+      saveChat(chatStorageKey, next.slice(-200));
+      return next;
+    });
+    
+    try {
+      const pending = JSON.parse(localStorage.getItem(pendingStorageKey) || "[]") as Omit<RealtimeMessage, "sender">[];
+      if (pending.some(m => m.id === id)) {
+        saveChat(pendingStorageKey, pending.map(m => m.id === id ? { ...m, text: newText, isEdited: true } : m));
+      }
+    } catch {}
+    
+    sendData({ type: "chat-edit", id, text: newText });
+  };
+
+  const deleteChatMessage = (id: string) => {
+    setChatMessages((current) => {
+      const next = current.map(m => m.id === id ? { ...m, text: "This message was deleted", isDeleted: true, media: undefined } : m);
+      saveChat(chatStorageKey, next.slice(-200));
+      return next;
+    });
+    
+    try {
+      const pending = JSON.parse(localStorage.getItem(pendingStorageKey) || "[]") as Omit<RealtimeMessage, "sender">[];
+      if (pending.some(m => m.id === id)) {
+        saveChat(pendingStorageKey, pending.map(m => m.id === id ? { ...m, text: "This message was deleted", isDeleted: true, media: undefined } : m));
+      }
+    } catch {}
+    
+    sendData({ type: "chat-delete", id });
+  };
+
+
+  const initiateCall = async () => {
+    const success = await startAudio();
+    if (success) {
+      sendData({ type: "call-request" });
+      setCallStatus("ringing");
+      if (callTimeoutRef.current) window.clearTimeout(callTimeoutRef.current);
+      callTimeoutRef.current = window.setTimeout(() => {
+        setCallStatus("idle");
+        stopAudio();
+      }, 30000);
+    }
+  };
+
+  const acceptCall = async () => {
+    if (callTimeoutRef.current) window.clearTimeout(callTimeoutRef.current);
+    const success = await startAudio();
+    if (success) {
+      sendData({ type: "call-accept" });
+      setCallStatus("connected");
+    } else {
+      sendData({ type: "call-decline" });
+      setCallStatus("idle");
+    }
+  };
+
+  const declineCall = () => {
+    if (callTimeoutRef.current) window.clearTimeout(callTimeoutRef.current);
+    sendData({ type: "call-decline" });
+    setCallStatus("idle");
+  };
+
+  const endCall = () => {
+    if (callTimeoutRef.current) window.clearTimeout(callTimeoutRef.current);
+    sendData({ type: "call-end" });
+    setCallStatus("idle");
+    stopAudio();
+  };
+
   const queueMedia = async (file: File) => {
     if (file.size > 50 * 1024 * 1024) {
       toast.error("Media must be 50 MB or smaller.");
       return false;
     }
-    const kind = file.type.startsWith("video/") ? "video" : file.type.startsWith("image/") ? "image" : null;
+    const kind = file.type.startsWith("video/") ? "video" : file.type.startsWith("image/") ? "image" : file.type.startsWith("audio/") ? "audio" : null;
     if (!kind) {
-      toast.error("Only images and videos can be shared.");
+      toast.error("Only images, videos, and audio can be shared.");
       return false;
     }
 
@@ -283,7 +462,6 @@ const Index = ({ ownerSpaceId, ownerName, partnerNameOverride, connectionPartner
 
   const audioRef = useRef<HTMLAudioElement>(null);
   const activeAudioSourceRef = useRef("");
-  const seenPopups = useRef(new Set<number>());
 
   const lockedIndices = useMemo(() => {
     return WEEK_DATA.map((day, index) =>
@@ -399,43 +577,6 @@ const Index = ({ ownerSpaceId, ownerName, partnerNameOverride, connectionPartner
     setDayIndex(newIndex);
   };
 
-  // 3. Automated Popups for ALL days (1.5s delay)
-  useEffect(() => {
-    if (started) {
-      const idx = dayIndex;
-
-      // Ensure popup runs only ONCE per day index per session
-      if (seenPopups.current.has(idx)) return;
-
-      let message = "";
-
-      // Define messages for each day
-      if (idx === 0) message = "Kaisa Hai?😁"; // Rose
-      else if (idx === 1) message = "Yeh wala?😉"; // Propose
-      else if (idx === 2) message = "😓"; // Chocolate
-      else if (idx === 4) message = "Enjoy Full Song 🎶"; // Promise
-      else if (idx === 7) message = "Last only for you!!🤍"; // Valentine
-
-      // If we have a message, schedule the popup
-      if (message) {
-        // Mark as seen immediately so it doesn't try again if effect re-runs quickly
-        seenPopups.current.add(idx);
-
-        const timer = setTimeout(() => {
-          setTransitionMessage(message);
-          setShowTransition(true);
-
-          // Hide popup automatically after 3 seconds
-          setTimeout(() => {
-            setShowTransition(false);
-          }, 3000);
-        }, 1500); // 1.5s delay after load
-
-        return () => clearTimeout(timer);
-      }
-    }
-  }, [dayIndex, started]);
-
   // Handle confetti and flip on BUTTON CLICK only
   const handleOpenGift = () => {
     // Immediate flip and confetti (de-linked from popup)
@@ -484,17 +625,11 @@ const Index = ({ ownerSpaceId, ownerName, partnerNameOverride, connectionPartner
     });
   };
 
-  // Easter Egg Logic - Moved to top
-
-
   // Preload Audio Assets (ONCE on mount)
   useEffect(() => {
     // Preload Secret Song
     const secretAudio = new Audio(SECRET_SONG_URL);
     secretAudio.preload = "auto";
-    // We don't force load() here to strictly save data, relying on preload="auto" usually works,
-    // but explicit load() ensures it starts fetching.
-    // However, only do this ONCE.
     
     // Optional: Preload the FIRST day's song immediately
     const firstDayAudio = new Audio(WEEK_DATA[0].audio);
@@ -626,8 +761,32 @@ const Index = ({ ownerSpaceId, ownerName, partnerNameOverride, connectionPartner
         {!started && (
           <IntroOverlay onStart={handleStart} partnerName={partnerName} />
         )}
-        {showTransition && <TransitionModal message={transitionMessage} />}
       </AnimatePresence>
+
+      {/* Global Chat Notification Popup */}
+      {notificationMsg && !chatOpen && started && (
+        <AnimatedContent
+          key="chat-notification-container"
+          distance={50}
+          direction="vertical"
+          reverse={true}
+          disappearAfter={5}
+          onDisappearanceComplete={handleNotificationDisappear}
+          className="fixed bottom-24 left-1/2 z-[9999] pointer-events-none -translate-x-1/2 drop-shadow-2xl"
+        >
+          <BorderGlow
+            animated
+            borderRadius={24}
+            glowRadius={15}
+            edgeSensitivity={100}
+            fillOpacity={0}
+            className="px-6 py-3 min-w-[220px] backdrop-blur-xl"
+            backgroundColor="rgba(18, 15, 23, 0.4)"
+          >
+            <MessageScroller text={notificationMsg.text} id={notificationMsg.id} />
+          </BorderGlow>
+        </AnimatedContent>
+      )}
 
       {/* Main content */}
       {started && (
@@ -663,6 +822,18 @@ const Index = ({ ownerSpaceId, ownerName, partnerNameOverride, connectionPartner
                   partnerName={livePartnerName}
                   messages={chatMessages}
                   unread={unreadMessages}
+                  onSend={queueChatMessage}
+                  onMedia={queueMedia}
+                  onEdit={editChatMessage}
+                  onDelete={deleteChatMessage}
+                  peerLastActive={peerLastActive}
+                  callStatus={callStatus}
+                  onInitiateCall={initiateCall}
+                  onAcceptCall={acceptCall}
+                  onDeclineCall={declineCall}
+                  onEndCall={endCall}
+                  remoteAudioStream={remoteAudioStream}
+                  localAudioStream={localAudioStream}
                   open={chatOpen}
                   onOpen={() => {
                     setChatOpen((isOpen) => {
@@ -674,8 +845,6 @@ const Index = ({ ownerSpaceId, ownerName, partnerNameOverride, connectionPartner
                   onClose={() => setChatOpen(false)}
                   onPreviewChange={setMediaPreviewOpen}
                   onExpandedChange={setChatExpanded}
-                  onSend={queueChatMessage}
-                  onMedia={queueMedia}
                 />
               )}
               <AudioControls
@@ -725,7 +894,7 @@ const Index = ({ ownerSpaceId, ownerName, partnerNameOverride, connectionPartner
           currentIndex={dayIndex}
           setIndex={handlePageChange}
           lockedIndices={lockedIndices}
-          hidden={chatExpanded || mediaPreviewOpen}
+          hidden={mediaPreviewOpen}
         />
       )}
 

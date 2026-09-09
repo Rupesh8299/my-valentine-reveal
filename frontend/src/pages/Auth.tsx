@@ -17,7 +17,10 @@ const Auth = ({ mode }: { mode: "login" | "register" }) => {
   const isRegister = mode === "register";
 
   useEffect(() => {
-    currentAccount()
+    // If returning from Google OAuth, sync the Supabase session first
+    syncSupabaseSession()
+      .then(() => currentAccount())
+      .catch(() => currentAccount())
       .then((account) => {
         if (account) navigate("/dashboard", { replace: true });
       })

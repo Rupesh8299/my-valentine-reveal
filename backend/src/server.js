@@ -85,7 +85,7 @@ app.get("/api/assets/:category/:file", (request, response, next) => {
 
 const upload = multer({
   storage: multer.memoryStorage(),
-  limits: { fileSize: 5 * 1024 * 1024 },
+  limits: { fileSize: 10 * 1024 * 1024 },
   fileFilter: (_request, file, callback) => callback(null, file.mimetype.startsWith("image/")),
 });
 
@@ -516,7 +516,7 @@ webSocketServer.on("connection", async (client) => {
     } catch {
       return;
     }
-    if (!["offer", "answer", "ice-candidate", "chat", "chat-history-sync", "gesture", "liquid-pointer", "presentation", "presentation-request"].includes(event.type)) return;
+    if (!["offer", "answer", "ice-candidate", "chat", "chat-edit", "chat-delete", "chat-history-sync", "gesture", "liquid-pointer", "presentation", "presentation-request", "call-request", "call-accept", "call-decline", "call-end"].includes(event.type)) return;
     if (event.type === "chat-history-sync" && Array.isArray(event.messages)) {
       event.messages.slice(-200).forEach((message) => {
         if (typeof message?.id !== "string") return;
@@ -610,7 +610,7 @@ app.post("/api/messages", upload.single("image"), async (request, response, next
 
 app.use((error, _request, response, _next) => {
   if (error instanceof multer.MulterError && error.code === "LIMIT_FILE_SIZE") {
-    return response.status(413).json({ error: "Images must be 5 MB or smaller." });
+    return response.status(413).json({ error: "Images must be 10 MB or smaller." });
   }
   response.status(502).json({
     error: error instanceof Error ? error.message : "Unable to send the message.",
